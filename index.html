@@ -2612,7 +2612,16 @@ async function generate() {
     - <hr>：border: none、border-top: 1px solid #e0e0e0、margin: 2rem 0
     - 內文中單獨出現的 <img>（不在 figure 內）：max-width: 100%、height: auto、border-radius 可選、margin: 0.75rem 0
     - <video>/<audio>：max-width: 100%、margin: 1rem 0
-    - 強調用的徽章／標籤文字（如截止日期、狀態標示）：可用 <span> 包裹並給 background-color 淡色、padding: 2px 8px、border-radius: 4px、font-weight: 600 做視覺強調，不可只用純文字顏色`;
+    - 強調用的徽章／標籤文字（如截止日期、狀態標示）：可用 <span> 包裹並給 background-color 淡色、padding: 2px 8px、border-radius: 4px、font-weight: 600 做視覺強調，不可只用純文字顏色
+20. 【必須】視覺設計系統（使用對象為政府機關／學校單位，須呈現正式、穩重、值得信賴的專業質感，不可套用花俏或活潑的一般行銷網站風格）：
+    - 主色（按鈕、連結、focus 外框、強調底線、標題重點字）：#0369A1（沉穩藍）；需要更深強調（如區塊標題背景、hover 狀態）時用 #0F172A（深藏青）
+    - 中性色階：主要文字 #0F172A、次要／輔助說明文字 #334155、邊框與分隔線 #E2E8F0、卡片或區塊底色 #F8FAFC（避免大面積純白造成反光刺眼，也避免使用彩色系背景）
+    - 語意狀態色（僅用於必要的狀態提示，且必須搭配圖示或文字說明，不可只靠顏色傳達）：完成／正確 #15803D、注意／警告 #B45309、錯誤／必填 #B91C1C
+    - 圓角統一使用 8px（按鈕、輸入框、卡片、圖片），陰影一律輕量（例如 box-shadow: 0 1px 3px rgba(15,23,42,.08)），不可使用厚重陰影、漸層背景、霓虹色或誇張特效
+    - 標題（h3/h4/h5）使用主色或深色文字並適度加粗；嚴禁使用高飽和度色系（亮紫、亮粉、螢光色）與跳動活潑的視覺風格
+    - 嚴禁使用 emoji 作為視覺圖示或裝飾元素；如需強調符號，改用純文字符號（如 ✓、✕）並搭配顏色與文字說明
+    - 連結、按鈕的 hover／focus 狀態一律使用同色階中更深一階的顏色（不可切換為完全不同色相），維持視覺一致性
+    - 整體版面留白充足、資訊分區明確（區塊之間用邊框或底色區隔），避免元素過度擁擠或裝飾過多，呈現公部門／教育機構應有的簡潔與正式感`;
 
     const userMsg = typeof userContent === 'string'
       ? [{ role: 'user', content: userContent }]
@@ -2893,7 +2902,16 @@ async function generate() {
 16a. 【必須】響應式設計：CSS 必須包含至少一組 @media (max-width: 600px) 斷點，內容含：多欄佈局（grid 多欄、flex 多欄並排）在手機寬度改為單欄；字級可適度縮小（如 h3 從 1.5rem 降到約 1.25~1.3rem）；padding 可適度縮小；<table> 用 overflow-x:auto 或改區塊式排列；@media 內規則同樣維持 .acc-block 前綴
 17. 【必須】字級系統：.acc-block 設 font-size:1rem 為基準，其餘標籤一律用 rem/em 相對單位；依語意層次設計大小（h3 1.4~1.6rem > h4 1.2~1.3rem > h5 1.05~1.15rem > 內文 1rem > 次要資訊如圖說/時間戳 0.85~0.9rem）；同層級標籤字級必須一致
 18. 【絕對要求】CSS 嚴格 scope：每條規則的選擇器都必須以 .acc-block 開頭（例如 .acc-block p、.acc-block table th），絕不可出現裸露無 scope 的標籤選擇器（如單獨的 h3 {}、a {}、img {}），確保產出代碼可安全嵌入任何既有頁面而不互相污染
-19. 【絕對要求】若內容含 <dl>：內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 或其他標籤包裹每組 dt/dd（許多 CMS 後台編輯器無法解析這種結構，貼回後台會損壞），排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要額外包裹元素；不可出現空的 <dd></dd>，若某項目其實是標題而非「標籤:內容」配對，改用 <h4> 或 <p>`;
+19. 【絕對要求】若內容含 <dl>：內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 或其他標籤包裹每組 dt/dd（許多 CMS 後台編輯器無法解析這種結構，貼回後台會損壞），排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要額外包裹元素；不可出現空的 <dd></dd>，若某項目其實是標題而非「標籤:內容」配對，改用 <h4> 或 <p>
+20. 【必須】視覺設計系統（使用對象為政府機關／學校單位，須呈現正式、穩重、值得信賴的專業質感，不可套用花俏或活潑的一般行銷網站風格）：
+    - 主色（按鈕、連結、focus 外框、強調底線、標題重點字）：#0369A1（沉穩藍）；需要更深強調（如區塊標題背景、hover 狀態）時用 #0F172A（深藏青）
+    - 中性色階：主要文字 #0F172A、次要／輔助說明文字 #334155、邊框與分隔線 #E2E8F0、卡片或區塊底色 #F8FAFC（避免大面積純白造成反光刺眼，也避免使用彩色系背景）
+    - 語意狀態色（僅用於必要的狀態提示，且必須搭配圖示或文字說明，不可只靠顏色傳達）：完成／正確 #15803D、注意／警告 #B45309、錯誤／必填 #B91C1C
+    - 圓角統一使用 8px（按鈕、輸入框、卡片、圖片），陰影一律輕量（例如 box-shadow: 0 1px 3px rgba(15,23,42,.08)），不可使用厚重陰影、漸層背景、霓虹色或誇張特效
+    - 標題（h3/h4/h5）使用主色或深色文字並適度加粗；嚴禁使用高飽和度色系（亮紫、亮粉、螢光色）與跳動活潑的視覺風格
+    - 嚴禁使用 emoji 作為視覺圖示或裝飾元素；如需強調符號，改用純文字符號（如 ✓、✕）並搭配顏色與文字說明
+    - 連結、按鈕的 hover／focus 狀態一律使用同色階中更深一階的顏色（不可切換為完全不同色相），維持視覺一致性
+    - 整體版面留白充足、資訊分區明確（區塊之間用邊框或底色區隔），避免元素過度擁擠或裝飾過多，呈現公部門／教育機構應有的簡潔與正式感`;
 
       const userText = typeof userContent === 'string' ? userContent : '';
       const chunks = splitHtmlChunks(userText, CHUNK_THRESHOLD);
@@ -3115,7 +3133,14 @@ ${isLast ? '這是最後一段。' : ''}
 17. 【必須】最外層容器（.acc-block）：不可設定 max-width，寬度用 width:100%；必須設定 padding:1rem 作為預設內間距，防止內容緊貼容器邊緣
 17a. 【必須】響應式設計：CSS 必須包含至少一組 @media (max-width: 600px) 斷點，內容含：多欄佈局在手機寬度改為單欄；字級可適度縮小（如 h3 從 1.5rem 降到約 1.25~1.3rem）；padding 可適度縮小；<table> 用 overflow-x:auto 或改區塊式排列；@media 內規則同樣維持 .acc-block 前綴
 18. 【必須】字級系統：.acc-block 設 font-size:1rem 為基準，其餘標籤一律用 rem/em 相對單位，不可寫死 px；依語意層次設計大小（h3 1.4~1.6rem > h4 1.2~1.3rem > h5 1.05~1.15rem > 內文/td 1rem > 次要資訊如圖說/時間戳/版權 0.85~0.9rem）；同一語意層級的標籤字級必須一致
-19. 【絕對要求】若內容含 <dl> 或需要建立「標籤:內容」配對的條列資訊，<dl> 內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 包裹每組 dt/dd（例如禁止 <dl><div><dt>...</dt><dd>...</dd></div></dl>），這種結構許多 CMS 後台編輯器無法正確解析，貼回後台會導致內容損壞或跑版；排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要任何額外包裹元素；不可出現空的 <dd></dd>`;
+19. 【絕對要求】若內容含 <dl> 或需要建立「標籤:內容」配對的條列資訊，<dl> 內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 包裹每組 dt/dd（例如禁止 <dl><div><dt>...</dt><dd>...</dd></div></dl>），這種結構許多 CMS 後台編輯器無法正確解析，貼回後台會導致內容損壞或跑版；排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要任何額外包裹元素；不可出現空的 <dd></dd>
+20. 【必須】視覺設計系統（使用對象為政府機關／學校單位，須呈現正式、穩重、值得信賴的專業質感）：若原始碼已有明確一致的品牌色（例如按鈕、連結顏色統一可辨識），需要新增樣式的元素（如原本沒有樣式的 button、badge、table）優先沿用該品牌色系；若原始碼配色混亂、不一致或找不到明確品牌色，改套用以下預設「政府／學校」配色方案：
+    - 主色（按鈕、連結、focus 外框、強調底線、標題重點字）：#0369A1（沉穩藍）；需要更深強調時用 #0F172A（深藏青）
+    - 中性色階：主要文字 #0F172A、次要／輔助說明文字 #334155、邊框與分隔線 #E2E8F0、卡片或區塊底色 #F8FAFC
+    - 語意狀態色（僅用於必要的狀態提示，且必須搭配圖示或文字說明，不可只靠顏色傳達）：完成／正確 #15803D、注意／警告 #B45309、錯誤／必填 #B91C1C
+    - 圓角統一使用 8px，陰影一律輕量（例如 box-shadow: 0 1px 3px rgba(15,23,42,.08)），不可新增厚重陰影、漸層背景、霓虹色或誇張特效
+    - 嚴禁新增 emoji 作為視覺圖示或裝飾元素；如需強調符號，改用純文字符號（如 ✓、✕）並搭配顏色與文字說明
+    - 連結、按鈕的 hover／focus 狀態一律使用同色階中更深一階的顏色（不可切換為完全不同色相）`;
 
       const chunks = splitHtmlChunks(userContent, CHUNK_THRESHOLD);
       const isChunked = chunks.length > 1;

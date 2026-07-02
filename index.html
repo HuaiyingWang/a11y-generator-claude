@@ -1972,16 +1972,20 @@ function ensureAccBlockWrapper(html) {
    這是最後一道防線：即使 prompt 規則要求 AI 加 scope、即使 AI 大部分時候有照做，
    仍可能漏掉個別規則（例如單獨的 p {}、table {}、.rg-table {}），
    這些一旦漏網，CSS 會直接作用在整個頁面，污染外層或被外層既有樣式覆蓋。
-   策略：逐條規則檢查選擇器，若選擇器（或逗號分隔的每一部分）已经以 scopeSelector 開頭則略過，
-   否則在前面補上 "scopeSelector "。@media 區塊內部的規則同樣處理（保留 @media 條件本身不變）。
-   ★ 注意：處理前先把 CSS 注釋（CSS comment 區塊）整段保護起來，避免注釋文字被誤識別為選擇器。 */
+   策略：用深度計數 tokenizer（與 dedupeCssRulesBySelector／pruneUnusedCssRules 相同作法）
+   把 CSS 解析成 comment／at-rule／rule 三種 token，逐條規則檢查選擇器，
+   若選擇器（或逗號分隔的每一部分）已經以 scopeSelector 開頭則略過，否則補上前綴；
+   @media 區塊內部遞迴處理（保留 @media 條件本身不變），:root/html/body 與其他 at-rule 原樣保留。
+   ★ 舊版用 lazy regex 保護 @media 區塊再挖洞回填，當 @media 後面還接著其他規則時，
+   佔位字串會和下一條規則的選擇器被同一個 regex 誤黏成一個選擇器一併加上前綴，
+   產生像 ".acc-block @media (max-width: 600px)" 這種無效 CSS；改用 tokenizer 徹底避免。 */
 function enforceScopePrefix(css, scopeSelector) {
   if (!css || !scopeSelector) return css;
   const scope = scopeSelector.trim();
   const scopeEsc = scope.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const alreadyScopedRe = new RegExp(`^${scopeEsc}(\\b|\\s|$)`);
 
-  function scopeOneSelectorList(rawSelector) {
+  function scopeSelectorList(rawSelector) {
     /* 把選擇器文字中殘留的 CSS 注釋剝除後再做前綴判斷 */
     const cleaned = rawSelector.replace(/\/\*[\s\S]*?\*\//g, '').trim();
     if (!cleaned) return rawSelector; /* 純注釋或空白，原樣返回 */
@@ -1997,53 +2001,76 @@ function enforceScopePrefix(css, scopeSelector) {
       .join(', ');
   }
 
-  /* 處理單個 CSS 規則區塊的「前置文字 + 選擇器」字串：
-     前置文字可能包含注釋佔位符、換行空白等，需要分離出來原樣保留，只對最後的選擇器做前綴。
-     策略：把整段文字按佔位符邊界分割，最後一段是真正的選擇器，前面都是注釋或空白。 */
-  function processSelectorPart(selectorPart) {
-    /* 找出所有佔位符的位置，把「真正的選擇器」定義為最後一個佔位符之後的文字 */
-    const placeholderRe = /__COMMENT_\d+__/g;
-    let lastPlaceholderEnd = 0;
-    let m;
-    while ((m = placeholderRe.exec(selectorPart)) !== null) {
-      lastPlaceholderEnd = m.index + m[0].length;
+  function tokenize(src) {
+    const tokens = [];
+    let i = 0;
+    while (i < src.length) {
+      if (src.slice(i, i + 2) === '/*') {
+        const end = src.indexOf('*/', i + 2);
+        const stop = end === -1 ? src.length : end + 2;
+        tokens.push({ type: 'comment', raw: src.slice(i, stop) });
+        i = stop; continue;
+      }
+      const firstNonSpace = src.slice(i).search(/\S/);
+      if (firstNonSpace !== -1 && src[i + firstNonSpace] === '@') {
+        if (firstNonSpace > 0) {
+          tokens.push({ type: 'text', raw: src.slice(i, i + firstNonSpace) });
+          i += firstNonSpace;
+        }
+        let depth = 0, j = i;
+        while (j < src.length) {
+          if (src[j] === '{') { depth++; j++; }
+          else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+          else if (src[j] === ';' && depth === 0) { j++; break; }
+          else j++;
+        }
+        tokens.push({ type: 'at', raw: src.slice(i, j) });
+        i = j; continue;
+      }
+      const braceIdx = src.indexOf('{', i);
+      if (braceIdx === -1) {
+        tokens.push({ type: 'text', raw: src.slice(i) });
+        break;
+      }
+      const preBrace = src.slice(i, braceIdx);
+      const atIdx = preBrace.search(/@\w/);
+      if (atIdx !== -1) {
+        tokens.push({ type: 'text', raw: src.slice(i, i + atIdx) });
+        i = i + atIdx;
+        continue;
+      }
+      const selector = src.slice(i, braceIdx);
+      let depth = 0, j = braceIdx;
+      while (j < src.length) {
+        if (src[j] === '{') { depth++; j++; }
+        else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+        else j++;
+      }
+      const decls = src.slice(braceIdx + 1, j - 1);
+      tokens.push({ type: 'rule', selector, decls, raw: src.slice(i, j) });
+      i = j;
     }
-    const prefix = selectorPart.slice(0, lastPlaceholderEnd); /* 注釋佔位符 + 前置空白 */
-    const actualSelector = selectorPart.slice(lastPlaceholderEnd);
-    if (!actualSelector.trim()) return selectorPart; /* 全是注釋，不動 */
-    return prefix + scopeOneSelectorList(actualSelector);
+    return tokens;
   }
 
-  /* ── Step 1：把所有 CSS 注釋（CSS comment 區塊）替換成佔位符，避免注釋文字被誤識為選擇器 ── */
-  const comments = [];
-  let work = css.replace(/\/\*[\s\S]*?\*\//g, m => {
-    comments.push(m);
-    return `__COMMENT_${comments.length - 1}__`;
-  });
+  /* 遞迴處理一段 CSS 文字內的所有 rule token；@media 內部遞迴呼叫自己處理巢狀規則 */
+  function scopeRulesInSource(src) {
+    return tokenize(src).map(tok => {
+      if (tok.type === 'rule') {
+        const leadingWs = (tok.selector.match(/^\s*/) || [''])[0];
+        return `${leadingWs}${scopeSelectorList(tok.selector)} {${tok.decls}}`;
+      }
+      if (tok.type === 'at' && /^@media\b/i.test(tok.raw)) {
+        const braceIdx = tok.raw.indexOf('{');
+        const head = tok.raw.slice(0, braceIdx + 1);
+        const body = tok.raw.slice(braceIdx + 1, -1); /* 去掉最外層開／閉 brace */
+        return head + scopeRulesInSource(body) + '}';
+      }
+      return tok.raw;
+    }).join('');
+  }
 
-  /* ── Step 2：保護 @media {...} 區塊，遞迴處理其內部規則 ── */
-  work = work.replace(/(@media[^{]*\{)([\s\S]*?)(\}\s*\})/g, (m, head, body, tail) => {
-    const processedBody = body.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, decls) => {
-      return `${processSelectorPart(selector)} {${decls}}`;
-    });
-    return head + processedBody + tail;
-  });
-
-  /* ── Step 3：處理 @media 以外的一般規則 ── */
-  const mediaBlocks2 = [];
-  work = work.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, m => {
-    mediaBlocks2.push(m);
-    return `__MEDIA2_PLACEHOLDER_${mediaBlocks2.length - 1}__`;
-  });
-  work = work.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, decls) => {
-    return `${processSelectorPart(selector)} {${decls}}`;
-  });
-  work = work.replace(/__MEDIA2_PLACEHOLDER_(\d+)__/g, (_, i) => mediaBlocks2[parseInt(i, 10)]);
-
-  /* ── Step 4：還原所有 CSS 注釋 ── */
-  work = work.replace(/__COMMENT_(\d+)__/g, (_, i) => comments[parseInt(i, 10)]);
-
-  return work;
+  return scopeRulesInSource(css);
 }
 
 /* ── 修正 <dl> 內違規的 <div> 包裹（保險：即使 prompt 規則要求 AI 避免，仍可能漏網） ──

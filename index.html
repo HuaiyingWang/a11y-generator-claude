@@ -1,0 +1,3686 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>無障礙內容生成工具</title>
+<meta name="description" content="依照 WCAG 2.2 AA/AAA 規範，自動生成可貼入後台 CMS 的無障礙 HTML 片段">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+  :root {
+    --accent: #1a6b4a;
+    --accent-hover: #155a3e;
+    --accent-light: #e6f4ee;
+    --accent-mid: #2d9e72;
+    --text-primary: #1a1a1a;
+    --text-secondary: #5a5a5a;
+    --text-muted: #8a8a8a;
+    --bg-page: #f4f6f5;
+    --bg-surface: #ffffff;
+    --bg-raised: #f9fafb;
+    --border: #e0e4e2;
+    --border-focus: #1a6b4a;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --font-body: 'Noto Sans TC', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    --wcag-aa: #1a6b4a;
+    --wcag-aaa: #7c3aed;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Skip link ── */
+  .skip-link {
+    position: absolute;
+    top: -100px;
+    left: 1rem;
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    z-index: 9999;
+    transition: top .15s;
+  }
+  .skip-link:focus { top: 0 }
+
+  /* ── Header ── */
+  .site-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+  .site-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+  .site-logo .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .site-logo .logo-icon svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  .site-logo .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -.01em }
+  .site-logo .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: .02em; display: block }
+  .header-badges { display: flex; gap: 8px; align-items: center }
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: .03em;
+  }
+  .badge-aa { background: #e6f4ee; color: #1a6b4a }
+  .badge-aaa { background: #ede9fe; color: #7c3aed }
+
+  /* ── Layout ── */
+  .app-layout {
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 0;
+    height: calc(100vh - 58px);
+  }
+
+  /* ── Left panel ── */
+  .left-panel {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-section {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-section:last-child { border-bottom: none }
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: .75rem;
+  }
+
+  /* ── Tabs ── */
+  .input-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .input-tabs::-webkit-scrollbar { display: none }
+  .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 11px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: var(--text-primary) }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent) }
+  .tab-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0 }
+
+  /* ── Tab panels ── */
+  .tab-panels { flex: 1; overflow-y: auto; padding: 1.25rem 1.5rem }
+  .tab-panel { display: none }
+  .tab-panel.active { display: block }
+
+  /* ── Form elements ── */
+  label.field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .field-group { margin-bottom: 1rem }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    resize: vertical;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(26,107,74,.12);
+  }
+  textarea.mono { font-family: var(--font-mono); font-size: 12px; line-height: 1.7 }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    position: relative;
+    background: var(--bg-raised);
+    overflow: hidden;
+  }
+  .upload-zone:hover, .upload-zone:focus-within, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  /* 改用「視覺上完全移出畫面」取代 opacity:0 疊加：opacity:0 的 input 仍佔據完整版面範圍，
+     部分瀏覽器（尤其 Windows 上的 Chrome/Edge）在此情境下，選取檔案後可能在 input 原生位置
+     額外渲染「已選擇的檔案」提示層，且該提示層有時會以瀏覽器 UI 層級顯示，不受父層
+     overflow:hidden 限制，導致蓋住或溢出自訂卡片版面。
+     將 input 改為固定極小尺寸並移至畫面外（position:fixed + 負座標），徹底消除這個原生
+     UI 出現的可能性；點擊與拖曳改由 JS 監聽 .upload-zone 本身觸發 input.click()。 */
+  .upload-zone input[type="file"] {
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .upload-zone svg { width: 28px; height: 28px; stroke: var(--text-muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 8px }
+  .upload-zone p { font-size: 13px; color: var(--text-secondary); margin: 0 }
+  .upload-zone .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px }
+
+  /* ── Image entries ── */
+  .img-entry {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .img-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .img-thumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .img-meta { flex: 1; min-width: 0 }
+  .img-name { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .btn-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: color .15s;
+  }
+  .btn-remove:hover { color: #dc2626 }
+  .btn-remove:focus { outline: 2px solid var(--border-focus); outline-offset: 2px }
+  .btn-remove svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round }
+  .img-field-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: block }
+  .img-input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 9px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .img-input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(26,107,74,.12) }
+  .img-field-group { margin-bottom: 8px }
+  .img-field-group:last-child { margin-bottom: 0 }
+
+  /* ── Mode toggle ── */
+  /* ── Usage hint cards ── */
+  .usage-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-md);
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: #2d5a46;
+    line-height: 1.6;
+  }
+  .usage-hint svg {
+    width: 14px; height: 14px;
+    stroke: var(--accent); fill: none;
+    stroke-width: 2; stroke-linecap: round;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .usage-hint code {
+    background: rgba(26,107,74,.12);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .usage-hint--warn {
+    background: #fff8e6;
+    border-left-color: #d4930a;
+    color: #7a5200;
+  }
+  .usage-hint--warn svg { stroke: #d4930a; }
+
+  .mode-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    background: var(--bg-raised);
+    color: var(--text-muted);
+    transition: background .15s, color .15s;
+  }
+  .mode-btn.active { background: var(--accent); color: #fff }
+  .mode-btn:focus { outline: 2px solid var(--border-focus); outline-offset: -2px }
+
+  /* ── Options bar ── */
+  .options-bar {
+    padding: 12px 1.5rem;
+    background: var(--bg-raised);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .options-bar .opt-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .options-bar .opt-group .opt-select {
+    flex: 1;
+  }
+  .options-bar .btn-generate-wrap {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .opt-label { font-size: 12px; color: var(--text-secondary); white-space: nowrap }
+  .opt-select {
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .opt-select:focus { outline: 2px solid var(--border-focus); outline-offset: 2px }
+
+  /* ── Generate button ── */
+  .btn-generate {
+    padding: 8px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: 0 2px 8px rgba(26,107,74,.25);
+  }
+  .btn-generate:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(26,107,74,.3) }
+  .btn-generate:active { transform: scale(.98) }
+  .btn-generate:focus { outline: 2px solid var(--border-focus); outline-offset: 3px }
+  .btn-generate:disabled { opacity: .5; cursor: not-allowed; transform: none }
+  .btn-generate svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .65s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  /* ── Right panel ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-page);
+  }
+  .output-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 48px;
+    flex-shrink: 0;
+  }
+  .out-tab {
+    padding: 0 16px;
+    height: 100%;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .out-tab:hover { color: var(--text-primary) }
+  .out-tab.active { color: var(--accent); border-bottom-color: var(--accent) }
+  .out-tab:focus { outline: 2px solid var(--border-focus); outline-offset: -2px }
+  .out-tab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+
+  /* ── Reset button ── */
+  .btn-reset {
+    margin-left: auto;
+    padding: 0 14px;
+    height: 100%;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-left: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: color .15s, background .15s;
+  }
+  .btn-reset:hover { color: #dc2626; background: #fef2f2 }
+  .btn-reset:active { background: #fee2e2 }
+  .btn-reset:focus { outline: 2px solid #dc2626; outline-offset: -2px }
+  .btn-reset svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+
+  .output-body { flex: 1; overflow: hidden; position: relative }
+  .out-panel { display: none; height: 100%; overflow-y: auto; padding: 1.5rem }
+  .out-panel.active { display: block }
+
+  /* ── Preview panel ── */
+  .preview-frame {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    min-height: 200px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Code panel ── */
+  .code-wrap { position: relative }
+  .code-block {
+    background: #1e2028;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: #abb2bf;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+    overflow-x: auto;
+  }
+  .code-block .c-tag { color: #e06c75 }
+  .code-block .c-attr { color: #d19a66 }
+  .code-block .c-val { color: #98c379 }
+  .code-block .c-comment { color: #5c6370; font-style: italic }
+  .copy-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 5px 12px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.75);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s, color .15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,.15); color: #fff }
+  .copy-btn:focus { outline: 2px solid #fff; outline-offset: 2px }
+  .copy-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+
+  /* ── Checklist panel ── */
+  .checklist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .check-item {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .check-item.pass { border-left: 3px solid #16a34a }
+  .check-item.warn { border-left: 3px solid #d97706 }
+  .check-item.fail { border-left: 3px solid #dc2626 }
+  .check-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px }
+  .check-icon.pass { color: #16a34a }
+  .check-icon.warn { color: #d97706 }
+  .check-icon.fail { color: #dc2626 }
+  .check-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  .check-body {}
+  .check-label { font-size: 13px; font-weight: 500; color: var(--text-primary) }
+  .check-level { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 20px; margin-left: 6px; letter-spacing: .05em }
+  .level-A { background: #fef9c3; color: #854d0e }
+  .level-AA { background: #dcfce7; color: #166534 }
+  .level-AAA { background: #ede9fe; color: #7c3aed }
+  .check-note { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5 }
+
+  /* ── Status ── */
+  .status-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+  }
+  .status-bar.loading { display: flex; background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe }
+  .status-bar.success { display: flex; background: #f0fdf4; color: #166534; border-color: #bbf7d0 }
+  .status-bar.error { display: flex; background: #fef2f2; color: #991b1b; border-color: #fecaca }
+  .status-bar svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0 }
+
+  /* ── Empty state ── */
+  .empty-state {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2rem;
+  }
+  .empty-state svg { width: 48px; height: 48px; stroke: var(--border); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 1rem }
+  .empty-state p { font-size: 14px }
+  .empty-state small { font-size: 12px; margin-top: 6px; display: block }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px }
+  ::-webkit-scrollbar-track { background: transparent }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px }
+
+  /* ── Word file item ── */
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .file-item svg { width: 18px; height: 18px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0 }
+  .file-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .app-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto }
+    .left-panel { height: 60vh }
+    .right-panel { height: 60vh }
+    .checklist-grid { grid-template-columns: 1fr }
+  }
+
+  /* ── focus visible ── */
+  *:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px }
+
+  /* ── Phone shell ── */
+  .phone-shell {
+    width: 375px;
+    min-height: 720px;
+    background: #fff;
+    border-radius: 48px;
+    border: 8px solid #1a1a1a;
+    box-shadow:
+      0 0 0 1px #333,
+      0 32px 64px rgba(0,0,0,.35),
+      inset 0 0 0 1px rgba(255,255,255,.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-notch {
+    height: 44px;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border-radius: 0 0 20px 20px;
+    margin: 0 16px;
+  }
+  .phone-speaker {
+    width: 54px;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+  }
+  .phone-cam {
+    width: 10px;
+    height: 10px;
+    background: #222;
+    border-radius: 50%;
+    border: 1.5px solid #444;
+  }
+  .phone-screen {
+    flex: 1;
+    width: 100%;
+    border: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
+  }
+  .phone-home {
+    height: 32px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(0,0,0,.06);
+  }
+  .phone-home-bar {
+    width: 120px;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    opacity: .3;
+  }
+  #mobile-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2rem 1rem;
+    min-height: 100%;
+    background: var(--bg-page);
+  }
+
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">跳至主要內容</a>
+
+<header class="site-header" role="banner">
+  <a class="site-logo" href="#" aria-label="無障礙內容生成工具首頁">
+    <div class="logo-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/><path d="M17 20H7a2 2 0 0 1-2-2v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1a2 2 0 0 1-2 2z"/><path d="M20 7h2M2 7h2M20 17h2M2 17h2"/></svg>
+    </div>
+    <div>
+      <span class="logo-text">後台內容無障礙助手</span>
+      <span class="logo-sub">讓您的網頁內容符合無障礙規範，可直接貼回後台使用</span>
+    </div>
+  </a>
+  <div class="header-badges" aria-label="支援規範等級">
+    <span class="badge badge-aa" aria-label="支援 WCAG AA 等級">AA</span>
+    <span class="badge badge-aaa" aria-label="支援 WCAG AAA 等級">AAA</span>
+  </div>
+</header>
+
+<main id="main-content" class="app-layout">
+
+  <!-- ── Left: Input ── -->
+  <section class="left-panel" aria-label="內容輸入">
+    <nav class="input-tabs" role="tablist" aria-label="輸入模式選擇">
+      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-text" id="tab-text" onclick="switchTab('text')" title="貼上文字，搭配圖片一起生成">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        貼上文字
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-word" id="tab-word" onclick="switchTab('word')" title="上傳 Word 文件自動擷取內容">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l1.5 4L12 14l1.5 3L15 13"/></svg>
+        上傳 Word
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-img" id="tab-img" onclick="switchTab('img')" title="上傳圖片，AI 自動撰寫圖片說明">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        僅有圖片
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-html" id="tab-html" onclick="switchTab('html')" title="後台原始碼有問題，需要修正無障礙">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        修正後台原始碼
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-full" id="tab-full" onclick="switchTab('full')" title="原始碼又亂又多 inline style，需要全面整理">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        整理髒亂原始碼
+      </button>
+    </nav>
+
+    <div class="tab-panels">
+
+      <!-- Text + Image panel -->
+      <div class="tab-panel active" id="panel-text" role="tabpanel" aria-labelledby="tab-text">
+        <div class="usage-hint" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>適用情境：從 Word、記事本、網頁複製的文字，要放到後台發布的新聞稿、課程說明、活動公告等。</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="text-input">貼上要發布的文字內容</label>
+          <textarea id="text-input" rows="6" placeholder="範例：直接從 Word 或記事本複製內容貼到這裡。&#10;&#10;支援中英文混排、條列式項目，AI 會自動整理成符合無障礙規範的 HTML 格式，讓您可以安全貼回後台的原始碼編輯器。"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">附加圖片（選填）</label>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">如果文章有搭配的圖片，可以在這裡一起上傳，AI 會自動撰寫無障礙圖片說明（alt 文字）。</p>
+          <div class="upload-zone" id="text-img-zone">
+            <input type="file" accept="image/*" multiple onchange="handleTextImgs(event)" aria-label="上傳附加圖片，支援多張">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p>點擊或拖曳圖片至此</p>
+            <p class="hint">支援 JPG、PNG、GIF、WebP，可多張</p>
+          </div>
+          <div id="text-img-list" aria-live="polite" aria-label="已上傳圖片列表"></div>
+        </div>
+      </div>
+
+      <!-- Word panel -->
+      <div class="tab-panel" id="panel-word" role="tabpanel" aria-labelledby="tab-word">
+        <div class="usage-hint" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>適用情境：有現成的 Word 檔（.docx），想直接轉成可貼回後台的無障礙 HTML，省去手動複製的步驟。</span>
+        </div>
+        <div class="upload-zone" style="margin-bottom:12px" id="word-zone">
+          <input type="file" accept=".docx" onchange="handleWord(event)" aria-label="上傳 Word 文件，僅支援 .docx 格式">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l1.5 4L12 14l1.5 3L15 13"/></svg>
+          <p>點擊或拖曳 Word 文件</p>
+          <p class="hint">僅支援 .docx 格式（Word 2007 以後的版本）</p>
+        </div>
+        <div id="word-file-area" style="display:none" aria-live="polite">
+          <div class="file-item" id="word-file-item">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="word-filename"></span>
+            <button class="btn-remove" onclick="clearWord()" aria-label="移除已上傳的 Word 文件">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              移除
+            </button>
+          </div>
+          <div id="word-img-notice" style="display:none;align-items:flex-start;gap:8px;padding:10px 12px;background:var(--accent-light);border-left:3px solid var(--accent);border-radius:var(--radius-md);margin-bottom:12px;font-size:12px;color:#2d5a46;line-height:1.6">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0;margin-top:1px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>已從文件中擷取 <strong class="word-img-count">0</strong> 張圖片，生成時會自動為每張圖片產生無障礙說明文字，不需要另外上傳。</span>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="word-extracted">擷取的文字內容（可手動修改）</label>
+            <textarea id="word-extracted" rows="8" placeholder="文件解析中…"></textarea>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px">
+          表格與圖片會自動隨文件一併擷取；若文件含圖片，畫面上方會顯示已擷取的張數提示。
+        </p>
+      </div>
+
+      <!-- Image extraction panel -->
+      <div class="tab-panel" id="panel-img" role="tabpanel" aria-labelledby="tab-img">
+        <div class="usage-hint" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>適用情境：只有圖片（例如活動海報、課程封面），需要 AI 自動幫每張圖寫無障礙替代說明，讓視障使用者也能理解圖片內容。</span>
+        </div>
+        <div class="upload-zone" style="margin-bottom:14px" id="img-zone">
+          <input type="file" accept="image/*" multiple onchange="handleImgs(event)" aria-label="上傳圖片，AI 將自動擷取語意並生成替代文字">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2l2-3h10l2 3a2 2 0 0 0 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <p>點擊或拖曳圖片至此</p>
+          <p class="hint">可同時上傳多張，每張圖 AI 都會自動生成說明</p>
+        </div>
+        <div id="img-entries" aria-live="polite" aria-label="圖片列表"></div>
+      </div>
+
+      <!-- HTML optimize panel -->
+      <div class="tab-panel" id="panel-html" role="tabpanel" aria-labelledby="tab-html">
+        <div class="usage-hint" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>適用情境：後台「原始碼」模式下已經有內容，但圖片沒有說明文字、顏色對比不足、被無障礙檢測工具標記有問題，需要修正。</span>
+        </div>
+        <div class="mode-toggle" role="group" aria-label="處理模式">
+          <button class="mode-btn active" id="mode-opt" onclick="setHtmlMode('optimize')" aria-pressed="true">
+            🔧 修正無障礙問題（保留原有排版）
+          </button>
+          <button class="mode-btn" id="mode-gen" onclick="setHtmlMode('generate')" aria-pressed="false">
+            ✨ 重新整理結構（內文不變，標籤更新）
+          </button>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="html-input" id="html-label">貼上後台的 HTML 原始碼</label>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">在後台編輯器切換到「原始碼」或「HTML」模式，將內容全選複製貼到這裡。</p>
+          <textarea id="html-input" rows="10" class="mono" placeholder="<div class=&quot;content&quot;>&#10;  <img src=&quot;photo.jpg&quot;>&#10;  <p style=&quot;color:red&quot;>...內容...</p>&#10;</div>"></textarea>
+        </div>
+      </div>
+
+      <!-- Full page source optimization panel -->
+      <div class="tab-panel" id="panel-full" role="tabpanel" aria-labelledby="tab-full">
+        <div class="usage-hint usage-hint--warn" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>適用情境：後台貼進去的原始碼非常混亂（大量 <code>style="..."</code>、字體顏色到處設定、舊版 CMS 匯出的程式碼），需要全面清理與重新整理，讓原始碼乾淨且符合無障礙規範。</span>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="full-input">貼上要整理的原始碼</label>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">AI 會清除所有雜亂的 style 設定、統一整理 CSS 格式，並修正無障礙問題。<strong>所有文字與連結內容保持不變。</strong></p>
+          <textarea id="full-input" rows="10" class="mono" placeholder="貼上完整的 HTML 原始碼（含 style=&quot;...&quot; 的內容都可以）"></textarea>
+        </div>
+      </div>
+
+    </div><!-- /tab-panels -->
+
+    <!-- Options bar -->
+    <div class="options-bar" role="toolbar" aria-label="生成選項">
+      <div class="opt-group">
+        <label class="opt-label" for="wcag-level">無障礙等級</label>
+        <select class="opt-select" id="wcag-level" aria-describedby="wcag-hint">
+          <option value="AA">AA — 標準（一般網站適用）</option>
+          <option value="AAA">AAA — 最嚴格（政府、學術機構）</option>
+        </select>
+        <span id="wcag-hint" style="display:none">選擇無障礙規範等級</span>
+      </div>
+
+      <div class="opt-group">
+        <label class="opt-label" for="output-lang">輸出語言</label>
+        <select class="opt-select" id="output-lang">
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <div class="btn-generate-wrap">
+        <button class="btn-generate" id="gen-btn" onclick="generate()" aria-live="polite">
+          <svg viewBox="0 0 24 24" aria-hidden="true" id="gen-icon"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          <span id="gen-text">開始生成</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Right: Output ── -->
+  <section class="right-panel" aria-label="生成結果">
+    <div class="output-header" role="tablist" aria-label="輸出模式">
+      <button class="out-tab active" role="tab" aria-selected="true" aria-controls="out-preview" id="otab-preview" onclick="switchOut('preview')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+        電腦版預覽
+      </button>
+      <button class="out-tab" role="tab" aria-selected="false" aria-controls="out-mobile" id="otab-mobile" onclick="switchOut('mobile')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        手機版預覽
+      </button>
+      <button class="out-tab" role="tab" aria-selected="false" aria-controls="out-code" id="otab-code" onclick="switchOut('code')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        複製原始碼
+      </button>
+      <button class="out-tab" role="tab" aria-selected="false" aria-controls="out-check" id="otab-check" onclick="switchOut('check')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        無障礙檢核
+      </button>
+      <button class="btn-reset" id="reset-btn" onclick="resetAll()" aria-label="清除所有輸入與生成結果，重新開始">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+        重新開始
+      </button>
+    </div>
+
+    <div class="output-body">
+
+      <!-- 電腦版預覽 -->
+      <div class="out-panel active" id="out-preview" role="tabpanel" aria-labelledby="otab-preview">
+        <div id="preview-status"></div>
+        <div id="preview-frame-wrap">
+          <div class="empty-state" id="preview-empty" aria-live="polite">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <p>這裡會顯示生成後的排版預覽</p>
+            <small>請在左側選擇輸入方式，填入內容後點擊「<strong>開始生成</strong>」按鈕</small>
+          </div>
+          <div class="preview-frame" id="preview-content" style="display:none" aria-live="polite" aria-label="生成的 HTML 預覽（電腦版）"></div>
+        </div>
+      </div>
+
+      <!-- 手機版預覽 -->
+      <div class="out-panel" id="out-mobile" role="tabpanel" aria-labelledby="otab-mobile">
+        <div class="empty-state" id="mobile-empty" aria-live="polite">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          <p>手機版預覽</p>
+          <small>生成內容後，可在這裡確認手機上的顯示效果</small>
+        </div>
+        <div id="mobile-wrap" style="display:none;display:flex;justify-content:center;align-items:flex-start;padding:1.5rem 1rem;min-height:100%">
+          <div class="phone-shell" aria-label="手機框架預覽">
+            <!-- 頂部聽筒 -->
+            <div class="phone-notch" aria-hidden="true">
+              <div class="phone-speaker"></div>
+              <div class="phone-cam"></div>
+            </div>
+            <!-- 滾動內容區：使用 iframe 讓 @media 查詢依據手機框架自身寬度判斷，
+                 而非外層瀏覽器視窗寬度（用 div + innerHTML 無法讓 @media (max-width) 正確觸發） -->
+            <iframe class="phone-screen" id="phone-screen" aria-label="手機版預覽內容" title="手機版預覽" frameborder="0"></iframe>
+            <!-- 底部 Home 指示條 -->
+            <div class="phone-home" aria-hidden="true"><div class="phone-home-bar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="out-panel" id="out-code" role="tabpanel" aria-labelledby="otab-code">
+        <div class="empty-state" id="code-empty">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <p>尚未生成原始碼</p>
+          <small>填入內容後，點擊左側「開始生成」按鈕</small>
+        </div>
+        <div id="code-wrap" style="display:none">
+          <!-- 優化說明摘要（動態填入） -->
+          <div id="code-summary" style="display:none;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px" aria-label="無障礙優化說明摘要"></div>
+
+          <!-- 使用說明 -->
+          <div style="background:#f0f7f4;border:1px solid #b3d9c8;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px">
+            <p style="font-size:13px;font-weight:600;color:#1a6b4a;margin-bottom:8px">📋 如何貼回後台？</p>
+            <ol style="font-size:12px;color:#2d5a46;padding-left:1.2rem;line-height:1.9;margin:0">
+              <li>點擊下方「複製原始碼」按鈕</li>
+              <li>進入您的後台編輯器，切換到「<strong>原始碼</strong>」或「<strong>HTML</strong>」模式</li>
+              <li>將原有內容全部選取刪除，貼上剛才複製的內容</li>
+              <li>儲存後切回一般編輯模式，確認版面正常即可發布</li>
+            </ol>
+          </div>
+
+          <!-- 原始碼區塊 -->
+          <div style="position:relative">
+            <pre class="code-block" id="code-content" tabindex="0" aria-label="生成的 HTML 原始碼"></pre>
+            <button class="copy-btn" id="copy-btn" onclick="copyCode()" aria-label="複製原始碼到剪貼簿">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="copy-label">複製原始碼</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="out-panel" id="out-check" role="tabpanel" aria-labelledby="otab-check">
+        <div class="empty-state" id="check-empty">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>尚未執行無障礙檢核</p>
+          <small>生成內容後，這裡會列出哪些項目符合規範、哪些需要注意</small>
+        </div>
+        <div id="checklist-wrap" style="display:none" aria-live="polite">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:10px 12px;background:var(--bg-raised);border-radius:var(--radius-sm)">
+            ✅ 綠色「通過」代表已符合無障礙規範　⚠️ 黃色「待確認」代表需要您進一步確認或手動調整
+          </div>
+          <div class="checklist-grid" id="checklist" role="list" aria-label="無障礙檢核項目"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════
+   ★ 部署設定：填入你的 Cloudflare Worker 網址
+   ══════════════════════════════════════════════════ */
+const WORKER_URL = 'https://your-worker-name.your-subdomain.workers.dev';
+/* ══════════════════════════════════════════════════ */
+
+/* ── State ── */
+let currentTab = 'text';
+let htmlMode = 'optimize';
+let textImgs = [];
+let imgEntries = [];
+let wordImgs = []; /* Word 文件內嵌圖片，由 parseDocx 擷取（{ id, mime, dataUrl }） */
+let lastCode = '';
+
+/* ── 初始化所有上傳框：點擊觸發隱藏 input、支援拖曳檔案 ──
+   input[type=file] 改為視覺上完全移出畫面（position:fixed + 負座標），
+   不再依賴「opacity:0 疊加在卡片上」的技巧，因此點擊行為改由 JS 主動觸發，
+   並額外補上拖放（drag & drop）支援，確保操作體驗不變。 */
+function initUploadZones() {
+  document.querySelectorAll('.upload-zone').forEach(zone => {
+    const input = zone.querySelector('input[type="file"]');
+    if (!input || zone.dataset.uploadInit) return;
+    zone.dataset.uploadInit = '1';
+
+    zone.addEventListener('click', () => input.click());
+    zone.setAttribute('tabindex', zone.getAttribute('tabindex') || '0');
+    zone.setAttribute('role', 'button');
+    zone.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+    });
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      zone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+      zone.addEventListener(evt, e => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove('dragover');
+      });
+    });
+    zone.addEventListener('drop', e => {
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (!files || !files.length) return;
+      /* 透過 DataTransfer 把拖放的檔案塞回 input，再手動觸發 change 事件，
+         讓既有的 onchange="handleXxx(event)" 邏輯不需要另外改寫即可重用 */
+      try {
+        const dt = new DataTransfer();
+        const maxFiles = input.multiple ? files.length : 1;
+        for (let i = 0; i < maxFiles; i++) dt.items.add(files[i]);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (err) {
+        console.error('拖放檔案處理失敗：', err);
+      }
+    });
+  });
+}
+
+/* ── Reset all ── */
+function resetAll() {
+  /* 重置 state */
+  textImgs = [];
+  imgEntries = [];
+  wordImgs = [];
+  lastCode = '';
+  currentTab = 'text';
+  htmlMode = 'optimize';
+
+  /* 清空輸入 */
+  document.getElementById('text-input').value = '';
+  document.getElementById('text-img-list').innerHTML = '';
+  document.getElementById('word-extracted').value = '';
+  document.getElementById('word-file-area').style.display = 'none';
+  const wordImgNotice = document.getElementById('word-img-notice');
+  if (wordImgNotice) wordImgNotice.style.display = 'none';
+  document.getElementById('img-entries').innerHTML = '';
+  document.getElementById('html-input').value = '';
+  document.getElementById('full-input').value = '';
+
+  /* 還原 input tab */
+  switchTab('text');
+  setHtmlMode('optimize');
+
+  /* 清空輸出 */
+  var preview = document.getElementById('preview-content');
+  preview.innerHTML = '';
+  preview.style.display = 'none';
+  document.getElementById('preview-empty').style.display = 'flex';
+
+  /* 手機版 */
+  renderPhonePreview('');
+  document.getElementById('mobile-wrap').style.display = 'none';
+  document.getElementById('mobile-empty').style.display = 'flex';
+
+  var statusEl = document.getElementById('preview-status');
+  statusEl.style.display = 'none';
+  statusEl.className = 'status-bar';
+
+  document.getElementById('code-wrap').style.display = 'none';
+  document.getElementById('code-empty').style.display = 'flex';
+  document.getElementById('code-content').textContent = '';
+  var summary = document.getElementById('code-summary');
+  if (summary) { summary.style.display = 'none'; summary.innerHTML = ''; }
+
+  document.getElementById('checklist-wrap').style.display = 'none';
+  document.getElementById('check-empty').style.display = 'flex';
+  document.getElementById('checklist').innerHTML = '';
+
+  /* 還原 output tab */
+  switchOut('preview');
+
+  /* 還原生成按鈕 */
+  var genBtn = document.getElementById('gen-btn');
+  genBtn.disabled = false;
+  document.getElementById('gen-text').textContent = '開始生成';
+  var genIcon = document.getElementById('gen-icon');
+  if (genIcon && genIcon.className === 'spinner') {
+    genIcon.outerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" id="gen-icon" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>';
+  }
+
+  /* 焦點回到輸入框 */
+  document.getElementById('text-input').focus();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function switchOut(panel) {
+  const ids = ['preview','mobile','code','check'];
+  ids.forEach(id => {
+    const btn = document.getElementById('otab-' + id);
+    const pnl = document.getElementById('out-' + id);
+    const active = id === panel;
+    if (btn) { btn.classList.toggle('active', active); btn.setAttribute('aria-selected', active ? 'true' : 'false'); }
+    if (pnl) pnl.classList.toggle('active', active);
+  });
+}
+
+function setHtmlMode(mode) {
+  htmlMode = mode;
+  document.getElementById('mode-opt').classList.toggle('active', mode === 'optimize');
+  document.getElementById('mode-gen').classList.toggle('active', mode === 'generate');
+  document.getElementById('mode-opt').setAttribute('aria-pressed', mode === 'optimize');
+  document.getElementById('mode-gen').setAttribute('aria-pressed', mode === 'generate');
+  document.getElementById('html-label').textContent = mode === 'optimize'
+    ? '貼上 HTML 原始碼進行無障礙優化'
+    : '貼上 HTML 原始碼，重新生成語意化結構';
+}
+
+/* ── File helpers ── */
+function toBase64(dataUrl) { return dataUrl.split(',')[1] }
+function getMime(dataUrl) { return dataUrl.match(/data:([^;]+);/)[1] }
+
+function readAsDataURL(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function readAsArrayBuffer(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+/* ── Text + Image tab ── */
+async function handleTextImgs(e) {
+  const files = Array.from(e.target.files);
+  for (const f of files) {
+    try {
+      const dataUrl = await readAsDataURL(f);
+      textImgs.push({ file: f, dataUrl, alt: '' });
+    } catch (err) {
+      console.error('讀取圖片失敗：', f.name, err);
+    }
+  }
+  e.target.value = '';
+  renderTextImgList();
+}
+
+function renderTextImgList() {
+  const list = document.getElementById('text-img-list');
+  list.innerHTML = '';
+  textImgs.forEach((img, i) => {
+    const el = document.createElement('div');
+    el.className = 'img-entry';
+    el.innerHTML = `
+      <div class="img-entry-header">
+        <img class="img-thumb" src="${img.dataUrl}" alt="">
+        <div class="img-meta">
+          <div class="img-name">${img.file.name}</div>
+          <button class="btn-remove" onclick="removeTextImg(${i})" aria-label="移除圖片 ${img.file.name}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            移除
+          </button>
+        </div>
+      </div>
+      <div class="img-field-group">
+        <label class="img-field-label" for="talt-${i}">自訂 alt（留空由 AI 自動生成）</label>
+        <input class="img-input" id="talt-${i}" type="text" value="${img.alt}"
+          oninput="textImgs[${i}].alt=this.value"
+          placeholder="例：產品外觀正面照">
+      </div>`;
+    list.appendChild(el);
+  });
+}
+
+function removeTextImg(i) {
+  textImgs.splice(i, 1);
+  renderTextImgList();
+}
+
+/* ── Word tab ── */
+async function handleWord(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('word-filename').textContent = file.name;
+  document.getElementById('word-file-area').style.display = 'block';
+  document.getElementById('word-extracted').value = '解析中…';
+  wordImgs = [];
+  try {
+    const buf = await readAsArrayBuffer(file);
+    const { text, images } = await parseDocx(buf);
+    wordImgs = images || [];
+    document.getElementById('word-extracted').value = text || '（無法擷取文字內容，請手動貼上）';
+    renderWordImgNotice();
+  } catch (err) {
+    console.error('docx 解析失敗：', err);
+    document.getElementById('word-extracted').value = '解析失敗，請確認為 .docx 格式。您可手動貼入文字內容。';
+  }
+}
+
+/* 顯示「已從文件中擷取 N 張圖片」的提示，讓使用者知道圖片已被工具讀取，
+   不需要再切換到「僅有圖片」分頁重新上傳 */
+function renderWordImgNotice() {
+  const el = document.getElementById('word-img-notice');
+  if (!el) return;
+  if (wordImgs.length > 0) {
+    el.style.display = 'flex';
+    el.querySelector('.word-img-count').textContent = wordImgs.length;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function clearWord() {
+  document.getElementById('word-file-area').style.display = 'none';
+  document.getElementById('word-extracted').value = '';
+  wordImgs = [];
+  const el = document.getElementById('word-img-notice');
+  if (el) el.style.display = 'none';
+}
+
+/* ── docx parser（ZIP → word/document.xml）──
+   完整支援三種常見內容：標題層級、表格、內嵌圖片，避免只抓段落文字導致
+   表格被打散成零散文字、圖片完全遺失的問題。
+   - 標題：依 pStyle（Heading1/Heading2/Heading3...或中文「標題 1」等）轉成 Markdown # 標記，
+     讓 AI 理解原始的標題階層，而非所有文字被拉平成同一層級
+   - 表格：偵測 <w:tbl>，依列（tr）/欄（tc）結構輸出成 Markdown 表格語法，保留行列對應關係
+   - 圖片：偵測 <w:drawing> 內的 r:embed，對照 word/_rels/document.xml.rels 找到實際檔案，
+     從 ZIP 內取出圖片二進位資料轉成 base64，並在文字流對應位置插入佔位標記，
+     同時回傳圖片清單供呼叫端一併附加到 API 請求中（讓 AI 能看到圖片內容生成 alt/figcaption）
+   回傳格式：{ text: string, images: [{ id, mime, dataUrl }] } */
+async function parseDocx(buf) {
+  const zip = await readZip(buf);
+  const xmlBuf = zip['word/document.xml'];
+  if (!xmlBuf) return { text: '', images: [] };
+  const xml = new TextDecoder().decode(xmlBuf);
+  const dom = new DOMParser().parseFromString(xml, 'application/xml');
+
+  /* 解析 rels：建立 rId → 媒體檔案路徑的對照表 */
+  const relsBuf = zip['word/_rels/document.xml.rels'];
+  const relMap = {}; /* rId -> 'word/media/imageN.ext' */
+  if (relsBuf) {
+    const relsXml = new TextDecoder().decode(relsBuf);
+    const relsDom = new DOMParser().parseFromString(relsXml, 'application/xml');
+    relsDom.querySelectorAll('Relationship').forEach(rel => {
+      const id = rel.getAttribute('Id');
+      const target = rel.getAttribute('Target');
+      if (id && target && /image/i.test(rel.getAttribute('Type') || '')) {
+        relMap[id] = target.startsWith('media/') ? `word/${target}` : target;
+      }
+    });
+  }
+
+  const mimeByExt = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', emf: 'image/x-emf', wmf: 'image/x-wmf' };
+  function toBase64FromBytes(bytes) {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  const images = [];
+  let imgCounter = 0;
+
+  /* 判斷段落的標題層級：讀取 <w:pStyle w:val="..."> 並比對常見命名模式 */
+  function getHeadingLevel(pEl) {
+    const pStyle = pEl.querySelector('pStyle');
+    if (!pStyle) return 0;
+    /* docx XML 屬性帶 w: 命名空間前綴（如 w:val="Heading1"），getAttribute('val') 抓不到，
+       需依序嘗試 w:val、val、或用 attributes 集合比對屬性本名 */
+    let rawVal = pStyle.getAttribute('w:val') || pStyle.getAttribute('val');
+    if (!rawVal) {
+      const attrs = pStyle.attributes;
+      for (let i = 0; i < attrs.length; i++) {
+        if (/(:|^)val$/i.test(attrs[i].name)) { rawVal = attrs[i].value; break; }
+      }
+    }
+    const val = (rawVal || '').toLowerCase();
+    const m = val.match(/heading\s*(\d)/) || val.match(/^h(\d)$/) || val.match(/標題\s*(\d)/);
+    if (m) return Math.min(parseInt(m[1], 10), 6);
+    if (val === 'title') return 1;
+    return 0;
+  }
+
+  /* 取得段落內文字，並偵測其中是否含圖片，圖片以佔位標記 __IMG_n__ 插入文字流中對應位置 */
+  function getParaContent(pEl) {
+    let text = '';
+    const runs = pEl.querySelectorAll('r');
+    runs.forEach(r => {
+      const drawing = r.querySelector('drawing');
+      if (drawing) {
+        const blip = drawing.querySelector('blip');
+        let embedId = null;
+        if (blip) {
+          embedId = blip.getAttribute('r:embed') || blip.getAttribute('embed') ||
+                    blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+          if (!embedId) {
+            const attrs = blip.attributes;
+            for (let i = 0; i < attrs.length; i++) {
+              if (/(:|^)embed$/i.test(attrs[i].name)) { embedId = attrs[i].value; break; }
+            }
+          }
+        }
+        const mediaPath = embedId ? relMap[embedId] : null;
+        if (mediaPath && zip[mediaPath]) {
+          const bytes = zip[mediaPath] instanceof Promise ? null : zip[mediaPath];
+          /* zip[] 內的值此時應已是 Uint8Array（readZip 已 resolve Promise），但保留防呆 */
+          if (bytes) {
+            const ext = (mediaPath.split('.').pop() || 'png').toLowerCase();
+            const mime = mimeByExt[ext] || 'image/png';
+            imgCounter++;
+            const placeholder = `__DOCX_IMG_${imgCounter}__`;
+            images.push({ id: placeholder, mime, dataUrl: `data:${mime};base64,${toBase64FromBytes(bytes)}` });
+            text += `\n${placeholder}\n`;
+          }
+        }
+      }
+      const tNodes = r.querySelectorAll('t');
+      tNodes.forEach(t => { text += t.textContent; });
+      if (r.querySelector('br, cr')) text += '\n';
+    });
+    return text;
+  }
+
+  /* 表格轉成 Markdown 表格語法，保留行列結構 */
+  function tableToMarkdown(tblEl) {
+    const rows = tblEl.querySelectorAll(':scope > tr');
+    if (rows.length === 0) return '';
+    const rowsData = Array.from(rows).map(tr => {
+      const cells = tr.querySelectorAll(':scope > tc');
+      return Array.from(cells).map(tc => {
+        const cellParas = tc.querySelectorAll('p');
+        const cellText = Array.from(cellParas).map(p => {
+          const tNodes = p.querySelectorAll('t');
+          return Array.from(tNodes).map(t => t.textContent).join('');
+        }).join(' ').trim().replace(/\|/g, '\\|') || ' ';
+        return cellText;
+      });
+    });
+    if (rowsData.length === 0) return '';
+    const colCount = Math.max(...rowsData.map(r => r.length));
+    rowsData.forEach(r => { while (r.length < colCount) r.push(' '); });
+    const lines = [];
+    lines.push('| ' + rowsData[0].join(' | ') + ' |');
+    lines.push('|' + rowsData[0].map(() => ' --- ').join('|') + '|');
+    for (let i = 1; i < rowsData.length; i++) {
+      lines.push('| ' + rowsData[i].join(' | ') + ' |');
+    }
+    return lines.join('\n');
+  }
+
+  /* 依文件主體（body）的直接子節點順序逐一處理，維持「表格」「段落」「標題」的原始相對順序 */
+  const body = dom.querySelector('body');
+  const blocks = [];
+  if (body) {
+    Array.from(body.children).forEach(child => {
+      const tag = child.localName || child.tagName;
+      if (tag === 'p') {
+        const level = getHeadingLevel(child);
+        const content = getParaContent(child).trim();
+        if (!content) return;
+        if (level > 0) {
+          blocks.push(`${'#'.repeat(level)} ${content}`);
+        } else {
+          blocks.push(content);
+        }
+      } else if (tag === 'tbl') {
+        const md = tableToMarkdown(child);
+        if (md) blocks.push(md);
+      }
+      /* 其他標籤（如 sectPr）忽略 */
+    });
+  }
+
+  return { text: blocks.join('\n\n'), images };
+}
+
+function readZip(buf) {
+  return new Promise((resolve, reject) => {
+    const view = new DataView(buf);
+    const files = {};
+    let offset = 0;
+    try {
+      while (offset < buf.byteLength - 4) {
+        if (view.getUint32(offset, true) !== 0x04034b50) break;
+        const flags = view.getUint16(offset + 6, true);
+        const comp = view.getUint16(offset + 8, true);
+        const compSize = view.getUint32(offset + 18, true);
+        const nameLen = view.getUint16(offset + 26, true);
+        const extraLen = view.getUint16(offset + 28, true);
+        const name = new TextDecoder().decode(new Uint8Array(buf, offset + 30, nameLen));
+        const dataOffset = offset + 30 + nameLen + extraLen;
+        const data = new Uint8Array(buf, dataOffset, compSize);
+        if (comp === 0) {
+          files[name] = data;
+        } else if (comp === 8) {
+          try {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(data);
+            writer.close();
+            const chunks = [];
+            const pump = () => reader.read().then(({ done, value }) => {
+              if (!done) { chunks.push(value); return pump() }
+            });
+            files[name] = pump().then(() => {
+              const total = chunks.reduce((s, c) => s + c.length, 0);
+              const out = new Uint8Array(total);
+              let p = 0;
+              chunks.forEach(c => { out.set(c, p); p += c.length });
+              return out;
+            });
+          } catch { files[name] = data }
+        }
+        offset = dataOffset + compSize;
+      }
+      const keys = Object.keys(files);
+      const proms = keys.map(k => Promise.resolve(files[k]).then(v => [k, v]));
+      Promise.all(proms).then(pairs => {
+        const result = {};
+        pairs.forEach(([k, v]) => result[k] = v);
+        resolve(result);
+      });
+    } catch (err) { reject(err) }
+  });
+}
+
+/* ── Image extraction tab ── */
+async function handleImgs(e) {
+  const files = Array.from(e.target.files);
+  for (const f of files) {
+    try {
+      const dataUrl = await readAsDataURL(f);
+      imgEntries.push({ file: f, dataUrl, alt: '', caption: '' });
+    } catch (err) {
+      console.error('讀取圖片失敗：', f.name, err);
+    }
+  }
+  /* 清空 input value，確保使用者重新選取相同檔案時 onchange 仍會觸發 */
+  e.target.value = '';
+  renderImgEntries();
+}
+
+function renderImgEntries() {
+  const container = document.getElementById('img-entries');
+  container.innerHTML = '';
+  imgEntries.forEach((img, i) => {
+    const el = document.createElement('div');
+    el.className = 'img-entry';
+    el.innerHTML = `
+      <div class="img-entry-header">
+        <img class="img-thumb" src="${img.dataUrl}" alt="">
+        <div class="img-meta">
+          <div class="img-name">${img.file.name}</div>
+          <button class="btn-remove" onclick="removeImg(${i})" aria-label="移除圖片 ${img.file.name}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            移除
+          </button>
+        </div>
+      </div>
+      <div class="img-field-group">
+        <label class="img-field-label" for="alt-${i}">簡短 alt（留空由 AI 生成）</label>
+        <input class="img-input" id="alt-${i}" type="text" value="${img.alt}"
+          oninput="imgEntries[${i}].alt=this.value"
+          placeholder="例：醫師為患者進行超音波檢查">
+      </div>
+      <div class="img-field-group">
+        <label class="img-field-label" for="cap-${i}">figcaption 詳細說明（留空由 AI 生成）</label>
+        <input class="img-input" id="cap-${i}" type="text" value="${img.caption}"
+          oninput="imgEntries[${i}].caption=this.value"
+          placeholder="詳細的圖片說明，顯示於圖片下方">
+      </div>`;
+    container.appendChild(el);
+  });
+}
+
+function removeImg(i) {
+  imgEntries.splice(i, 1);
+  renderImgEntries();
+}
+
+/* ── 節流：確保連續 API 呼叫之間至少間隔一定時間，降低觸發 429 限流的機率 ── */
+let __lastApiCallTime = 0;
+async function pacedAPI(...args) {
+  const MIN_GAP = 1500; /* 毫秒：連續呼叫之間的最小間隔 */
+  const now = Date.now();
+  const wait = __lastApiCallTime + MIN_GAP - now;
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  __lastApiCallTime = Date.now();
+  return callAPI(...args);
+}
+
+/* ── API call helper（含重試與安全解析） ── */
+async function callAPI(system, messages, maxTokens = 4096, retries = 3) {
+  let lastErr = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: maxTokens,
+          system,
+          messages
+        })
+      });
+
+      /* 先讀純文字，避免 res.json() 在非 JSON 回應時直接拋錯 */
+      const text = await res.text();
+
+      /* HTTP 錯誤（5xx 過載、429 限流等）→ 重試 */
+      if (!res.ok) {
+        const is429 = res.status === 429;
+        lastErr = new Error(`伺服器回應 ${res.status}${is429 ? '（請求過於頻繁）' : res.status >= 500 ? '（伺服器忙碌）' : ''}`);
+        if (attempt < retries) {
+          /* 429 限流：較長的指數退避（3s → 6s → 12s）；其他錯誤維持較短退避 */
+          const delay = is429 ? 3000 * Math.pow(2, attempt) : 1200 * (attempt + 1);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw lastErr;
+      }
+
+      /* 安全解析 JSON */
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        /* 回應不是 JSON（可能是 HTML 錯誤頁）→ 重試 */
+        lastErr = new Error('伺服器回應格式異常，請稍後再試');
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+          continue;
+        }
+        throw lastErr;
+      }
+
+      if (data.error) throw new Error(data.error.message || 'API 錯誤');
+      return data.content?.map(c => c.text || '').join('') || '';
+
+    } catch (err) {
+      lastErr = err;
+      /* 網路層錯誤（fetch 本身失敗）→ 重試 */
+      if (attempt < retries && (err.name === 'TypeError' || /網路|fetch|network/i.test(err.message))) {
+        await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastErr || new Error('API 呼叫失敗');
+}
+
+/* ── 剝除 Markdown 程式碼圍欄（```html ``` 等） ── */
+function stripCodeFences(str) {
+  return str
+    .replace(/^\s*```[a-zA-Z]*\s*\n?/gm, '')   /* 開頭圍欄 ```html / ```css / ``` */
+    .replace(/\n?\s*```\s*$/gm, '')             /* 結尾圍欄 ``` */
+    .replace(/```[a-zA-Z]*/g, '')               /* 殘留的行內圍欄 */
+    .replace(/```/g, '')
+    .trim();
+}
+
+/* ── 標題層級正規化：移除 h1/h2，整體層級平移使最高階為 h3，並保留相對層次 ──
+   只作用於 HTML body（呼叫端須先分離 <style>，避免改到 CSS 選擇器）。 */
+function demoteHeadings(html) {
+  /* 先排除 <style>...</style> 區塊，避免改到 CSS 選擇器 */
+  const styleBlocks = [];
+  let work = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, m => {
+    styleBlocks.push(m);
+    return `__STYLE_PLACEHOLDER_${styleBlocks.length - 1}__`;
+  });
+
+  /* 找出 body 中實際出現的標題層級 */
+  const levels = [...work.matchAll(/<\/?h([1-6])\b/gi)].map(m => parseInt(m[1], 10));
+  if (levels.length) {
+    const minLevel = Math.min(...levels);
+    /* 平移量：讓最小層級對齊 h3 */
+    const shift = 3 - minLevel;
+    if (shift !== 0) {
+      /* 由高數字往低數字替換，避免連鎖覆蓋 */
+      const order = shift > 0 ? [6,5,4,3,2,1] : [1,2,3,4,5,6];
+      order.forEach(lv => {
+        let target = lv + shift;
+        if (target < 3) target = 3;   /* 不低於 h3 */
+        if (target > 6) target = 6;   /* 不超過 h6 */
+        if (target !== lv) {
+          work = work
+            .replace(new RegExp(`<h${lv}\\b`, 'gi'), `<h${target}__TMP__`)
+            .replace(new RegExp(`</h${lv}>`, 'gi'), `</h${target}__TMP__>`);
+        }
+      });
+      work = work.replace(/__TMP__/g, '');
+    }
+  }
+
+  /* 還原 style 區塊 */
+  work = work.replace(/__STYLE_PLACEHOLDER_(\d+)__/g, (_, i) => styleBlocks[parseInt(i, 10)]);
+  return work;
+}
+
+/* ── 確保 CSS 含 ul/ol 預設清單樣式（保險：AI 沒加時自動補上） ── */
+function ensureListStyles(css, hasList) {
+  if (!hasList) return css;
+  /* 偵測 CSS 中是否已有 .acc-block ul / ol 並含 list-style */
+  const hasUlRule = /\.acc-block[^{]*\b(ul|ol)\b[^{]*\{[^}]*list-style/i.test(css);
+  if (hasUlRule) return css;
+  /* 補上預設規則 */
+  const defaultRule = '\n.acc-block ul,\n.acc-block ol {\n  padding-left: 1.1rem;\n  list-style: auto;\n}\n';
+  return (css || '') + defaultRule;
+}
+
+/* ── 確保 CSS 含基本段落／標題間距（保險：AI 漏掉時自動補上，避免內容黏在一起） ──
+   scopeSelector 為可選的包裹選擇器前綴（例如 ".acc-block "），留空則套用通用選擇器。 */
+function ensureSpacingStyles(css, scopeSelector) {
+  const src = css || '';
+  const prefix = scopeSelector ? scopeSelector.trim() + ' ' : '';
+  const prefixEsc = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /* 偵測 CSS 中任何位置是否已對 p / h3~h6 設定 margin（避免重複疊加保底規則） */
+  const hasPRule = /\bp\s*[,{][^}]*\{[^}]*margin/i.test(src) || /\bp\s*\{[^}]*margin/i.test(src);
+  const hasHeadingRule = /\bh[3-6]\b[^{,]*[,{][^}]*\{[^}]*margin/i.test(src) || /\bh[3-6]\s*\{[^}]*margin/i.test(src);
+
+  let extra = '';
+  if (!hasPRule) {
+    extra += `\n${prefix}p {\n  margin: 0 0 0.9rem;\n  line-height: 1.7;\n}\n${prefix}p:last-child {\n  margin-bottom: 0;\n}\n`;
+  }
+  if (!hasHeadingRule) {
+    extra += `\n${prefix}h3,\n${prefix}h4,\n${prefix}h5,\n${prefix}h6 {\n  margin: 1.5rem 0 0.6rem;\n}\n`;
+  }
+  return extra ? src + extra : src;
+}
+
+/* ── 確保 CSS 含基本表格樣式（保險：AI 漏掉時自動補上，避免表格無框線無內距） ──
+   scopeSelector 為可選的包裹選擇器前綴，留空則套用通用選擇器。 */
+function ensureTableStyles(css, hasTable, scopeSelector) {
+  if (!hasTable) return css;
+  const src = css || '';
+  const prefix = scopeSelector ? scopeSelector.trim() + ' ' : '';
+
+  /* 偵測 CSS 中是否已對 table/th/td 設定 border（粗略判斷，避免重複疊加） */
+  const hasTableRule = /\b(table|th|td)\b[^{,]*[,{][^}]*\{[^}]*border/i.test(src) ||
+                        /\bt[dh]\s*\{[^}]*border/i.test(src);
+  if (hasTableRule) return css;
+
+  const defaultRule = `
+${prefix}table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+${prefix}th,
+${prefix}td {
+  border: 1px solid #d0d0d0;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+${prefix}th {
+  font-weight: 600;
+  background-color: #f0f0f0;
+}
+${prefix}tbody tr:nth-child(even) {
+  background-color: #f7f7f7;
+}
+@media (max-width: 600px) {
+  ${prefix}table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+`;
+  return src + defaultRule;
+}
+
+/* ── 確保 CSS 含 <dl> 的 Grid 排版樣式（保險：AI 漏掉時自動補上，
+   特別是在 fixDlStructure 拆除了 div 包裹之後，原本可能依賴 div 排版的樣式會失效，
+   這裡確保攤平後的 dl/dt/dd 仍有正確的對齊排版） ── */
+function ensureDlGridStyle(css, hasDl, scopeSelector) {
+  if (!hasDl) return css;
+  const src = css || '';
+  const prefix = scopeSelector ? scopeSelector.trim() + ' ' : '';
+
+  /* 偵測 CSS 中是否已有 dl 的 grid 排版規則 */
+  const hasDlGridRule = /\bdl\b[^{,]*[,{][^}]*\{[^}]*display\s*:\s*grid/i.test(src) ||
+                         /\bdl\s*\{[^}]*display\s*:\s*grid/i.test(src);
+  if (hasDlGridRule) return css;
+
+  const defaultRule = `
+${prefix}dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 10px;
+  column-gap: 1rem;
+  margin: 0 0 1rem;
+}
+${prefix}dt {
+  font-weight: 600;
+}
+${prefix}dd {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  ${prefix}dl {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+}
+`;
+  return src + defaultRule;
+}
+
+/* ── 確保最外層容器有 padding:1rem（保險：AI 漏掉時自動補上，防止內容緊貼邊緣） ── */
+function ensureOuterPadding(css, scopeSelector) {
+  if (!css || !scopeSelector) return css;
+  const src = css;
+  const scope = scopeSelector.trim();
+  const scopeEsc = scope.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /* 偵測最外層 scope 選擇器是否已設有 padding（只查不含空格的精確選擇器，代表最外層本身） */
+  const outerRe = new RegExp(`${scopeEsc}\\s*\\{[^}]*\\bpadding\\b`, 'i');
+  if (outerRe.test(src)) return src;
+  return src + `\n${scope} {\n  padding: 1rem;\n}\n`;
+}
+
+/* ── 確保 CSS 含至少一組響應式 @media (max-width: 600px) 斷點（保險：AI 漏掉時自動補上）──
+   若 AI 已經自行寫了任何 @media 規則，視為已處理，不重複疊加，避免規則衝突或覆蓋 AI 的設計。
+   若完全沒有 @media，依目前 HTML 內容判斷需要哪些手機版調整：
+   - 偵測到多欄 grid/flex 佈局 → 補上改單欄的規則
+   - 最外層容器若有設定 padding → 補上手機版縮小 padding
+   - 偵測到主要標題（h3）→ 補上手機版縮小字級
+   這個函式只在完全沒有任何 @media 時介入，是最後一道防線，確保「至少有基本響應式」。 */
+function ensureResponsiveMediaQuery(css, html, scopeSelector) {
+  if (!css) return css;
+  if (/@media/i.test(css)) return css; /* AI 已自行處理響應式，不介入 */
+
+  const scope = (scopeSelector || '.acc-block').trim();
+  const rules = [];
+
+  /* 偵測最外層是否為多欄 grid/flex 佈局 */
+  const hasMultiColGrid = /grid-template-columns\s*:\s*[^;]*\d\w*\s+\d/i.test(css) ||
+                           /grid-template-columns\s*:\s*repeat\(/i.test(css);
+  const hasFlexRow = /display\s*:\s*flex/i.test(css) && /flex-direction\s*:\s*row/i.test(css);
+  if (hasMultiColGrid) {
+    rules.push(`  ${scope} [class*="grid"], ${scope} > div[style*="grid"] {\n    grid-template-columns: 1fr !important;\n  }`);
+  }
+
+  /* 最外層 padding 縮小 */
+  const outerPaddingMatch = css.match(new RegExp(`${scope.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s*\\{[^}]*padding\\s*:\\s*([\\d.]+)(rem|px|em)`, 'i'));
+  if (outerPaddingMatch) {
+    const val = parseFloat(outerPaddingMatch[1]);
+    const unit = outerPaddingMatch[2];
+    const reduced = Math.max(val * 0.75, 0.5).toFixed(2).replace(/\.?0+$/, '');
+    rules.push(`  ${scope} {\n    padding: ${reduced}${unit};\n  }`);
+  }
+
+  /* h3 字級縮小（若 HTML 有 h3） */
+  if (html && /<h3[\s>]/i.test(html)) {
+    const h3Match = css.match(new RegExp(`${scope.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s+h3\\s*\\{[^}]*font-size\\s*:\\s*([\\d.]+)(rem|px|em)`, 'i'));
+    if (h3Match) {
+      const val = parseFloat(h3Match[1]);
+      if (val > 1.3) {
+        const reduced = Math.max(val * 0.85, 1.2).toFixed(2).replace(/\.?0+$/, '');
+        rules.push(`  ${scope} h3 {\n    font-size: ${reduced}${h3Match[2]};\n  }`);
+      }
+    }
+  }
+
+  /* table 響應式（理論上 ensureTableStyles 已處理，這裡僅防止遺漏） */
+  if (html && /<table[\s>]/i.test(html) && !/table[\s\S]*?overflow-x/i.test(css)) {
+    rules.push(`  ${scope} table {\n    display: block;\n    overflow-x: auto;\n    white-space: nowrap;\n  }`);
+  }
+
+  if (rules.length === 0) return css; /* 沒有可調整的項目，不硬塞空的 @media */
+
+  return css + `\n@media (max-width: 600px) {\n${rules.join('\n')}\n}\n`;
+}
+
+/* ── 確保常見元素都有基本樣式（保險：AI 漏掉時自動補上對應元素的預設外觀） ──
+   針對 blockquote/code/pre/button/input 系列/details/hr/單獨圖片 逐一檢查，
+   只在 HTML 中存在該元素、且 CSS 完全沒有對應規則時才補上，避免重複疊加。 */
+function ensureMiscElementStyles(css, html, scopeSelector) {
+  const src = css || '';
+  const prefix = scopeSelector ? scopeSelector.trim() + ' ' : '';
+  let extra = '';
+
+  const has = (tagPattern) => new RegExp(`<${tagPattern}\\b`, 'i').test(html);
+  const cssHas = (selectorPattern) => new RegExp(`\\b${selectorPattern}\\b[^{,]*[,{]`, 'i').test(src);
+
+  if (has('blockquote') && !cssHas('blockquote')) {
+    extra += `\n${prefix}blockquote {\n  border-left: 4px solid #888;\n  padding-left: 1rem;\n  margin: 1rem 0;\n  color: #555;\n}\n`;
+  }
+  if (has('code') && !cssHas('code')) {
+    extra += `\n${prefix}code {\n  background-color: #f0f0f0;\n  padding: 2px 6px;\n  border-radius: 4px;\n  font-family: monospace;\n  font-size: 0.9em;\n}\n`;
+  }
+  if (has('pre') && !cssHas('pre')) {
+    extra += `\n${prefix}pre {\n  background-color: #f5f5f5;\n  padding: 1rem;\n  border-radius: 6px;\n  overflow-x: auto;\n  line-height: 1.6;\n}\n`;
+  }
+  if (has('button') && !cssHas('button')) {
+    extra += `\n${prefix}button {\n  padding: 0.6rem 1.2rem;\n  border-radius: 6px;\n  background-color: #2563eb;\n  color: #fff;\n  border: none;\n  cursor: pointer;\n  font-weight: 600;\n  transition: background-color .15s;\n}\n${prefix}button:hover {\n  background-color: #1d4ed8;\n}\n${prefix}button:focus-visible {\n  outline: 3px solid #2563eb;\n  outline-offset: 2px;\n}\n`;
+  }
+  if ((has('input') || has('select') || has('textarea')) && !cssHas('input')) {
+    extra += `\n${prefix}input,\n${prefix}select,\n${prefix}textarea {\n  border: 1px solid #ccc;\n  border-radius: 4px;\n  padding: 0.5rem 0.75rem;\n  width: 100%;\n  box-sizing: border-box;\n  font-size: 1rem;\n}\n${prefix}input:focus,\n${prefix}select:focus,\n${prefix}textarea:focus {\n  outline: 2px solid #2563eb;\n  outline-offset: 1px;\n}\n`;
+  }
+  if (has('summary') && !cssHas('summary')) {
+    extra += `\n${prefix}summary {\n  font-weight: 600;\n  cursor: pointer;\n}\n${prefix}details[open] summary {\n  margin-bottom: 0.5rem;\n}\n`;
+  }
+  if (has('hr') && !cssHas('hr')) {
+    extra += `\n${prefix}hr {\n  border: none;\n  border-top: 1px solid #e0e0e0;\n  margin: 2rem 0;\n}\n`;
+  }
+  if (has('blockquote') === false && has('img') && !cssHas('img')) {
+    /* 只在沒有 figure（圖片已有專屬規範時不重複處理）且存在裸 img 時補上 */
+    if (!/<figure\b/i.test(html)) {
+      extra += `\n${prefix}img {\n  max-width: 100%;\n  height: auto;\n  display: block;\n  margin: 0.75rem auto;\n}\n`;
+    }
+  }
+  /* 保險：若 HTML 含 <figure> 但 CSS 完全沒有對應的置中規則，補上水平置中樣式，
+     避免圖片區塊預設靠左對齊。只在 CSS 完全沒有 figure 相關規則時介入，
+     不覆蓋 AI 已自行設計的樣式。 */
+  if (has('figure') && !cssHas('figure')) {
+    extra += `\n${prefix}figure {\n  margin: 0 auto 1rem;\n  text-align: center;\n}\n${prefix}figure img {\n  display: block;\n  max-width: 100%;\n  height: auto;\n  margin: 0 auto;\n}\n${prefix}figcaption {\n  text-align: center;\n  margin-top: 0.5rem;\n}\n`;
+  }
+  if ((has('video') || has('audio')) && !cssHas('video') && !cssHas('audio')) {
+    extra += `\n${prefix}video,\n${prefix}audio {\n  max-width: 100%;\n  margin: 1rem 0;\n}\n`;
+  }
+
+  return extra ? src + extra : src;
+}
+
+/* ── 移除最外層容器選擇器上的 max-width（保險：AI 偶爾仍會主動加上） ──
+   只處理「不在 @media 查詢內」且「選擇器不含空白組合（代表是最外層單一 class/標籤，
+   不是像 .acc-block img 這種巢狀內部元素選擇器）」的規則區塊，
+   避免誤刪 img/video 等合理的響應式 max-width:100%。 */
+function stripOuterMaxWidth(css, scopeSelector) {
+  if (!css) return css;
+
+  /* 先把 @media {...} 區塊整段保護起來，不處理其內部規則 */
+  const mediaBlocks = [];
+  let work = css.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, m => {
+    mediaBlocks.push(m);
+    return `__MEDIA_PLACEHOLDER_${mediaBlocks.length - 1}__`;
+  });
+
+  /* 逐一檢查每個規則區塊：selector { ...declarations... } */
+  work = work.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, decls) => {
+    const sel = selector.trim();
+    /* 判斷是否為「最外層容器」選擇器：
+       - 等於 scopeSelector 本身（例如 .acc-block）
+       - 或是不含空白、不含子選擇器組合的單一 class（例如 .aissm-page、.rg-container）
+       - 排除含空白的巢狀選擇器（例如 .acc-block img、.acc-block table），這些是內部元素，max-width:100% 合理保留 */
+    const isTopLevel = scopeSelector && sel === scopeSelector.trim();
+    const isSingleClassNoDescendant = /^\.[a-zA-Z0-9_-]+$/.test(sel) && !sel.includes(' ');
+
+    if (isTopLevel || isSingleClassNoDescendant) {
+      /* 移除這個區塊內的 max-width 宣告（但保留其他宣告） */
+      const cleanedDecls = decls.replace(/max-width\s*:\s*[^;]+;?/gi, '');
+      return `${selector}{${cleanedDecls}}`;
+    }
+    return match;
+  });
+
+  /* 還原 @media 區塊 */
+  work = work.replace(/__MEDIA_PLACEHOLDER_(\d+)__/g, (_, i) => mediaBlocks[parseInt(i, 10)]);
+  return work;
+}
+
+/* ── 確保最外層容器一定帶有 acc-block class（保險：原始碼優化分支可能用任意 wrapper class，
+   若 AI 沒有依規則統一命名，這裡強制處理，避免後續所有 scope 為 .acc-block 的 CSS 規則失效）。
+   策略：
+   1. 若內容本身只有一個最外層標籤（div/article/section）且已含 acc-block class → 不動
+   2. 若最外層標籤存在但 class 不含 acc-block → 補加 acc-block class（保留原本 class）
+   3. 若內容沒有單一最外層包裹標籤（多個並列的根層級元素）→ 額外包一層 <div class="acc-block"> */
+function ensureAccBlockWrapper(html) {
+  const trimmed = html.trim();
+  if (!trimmed) return trimmed;
+
+  /* 偵測開頭是否為單一容器標籤（article/section/div），且其結尾標籤確實是整份內容的收尾 */
+  const openMatch = trimmed.match(/^<(article|section|div)\b([^>]*)>/i);
+  if (openMatch) {
+    const tag = openMatch[1].toLowerCase();
+    const closeRe = new RegExp(`</${tag}>\\s*$`, 'i');
+    if (closeRe.test(trimmed)) {
+      const attrs = openMatch[2];
+      const classMatch = attrs.match(/class\s*=\s*"([^"]*)"/i);
+
+      if (classMatch && /\bacc-block\b/.test(classMatch[1])) {
+        return trimmed; /* 已含 acc-block，不需處理 */
+      }
+
+      let newOpenTag;
+      if (classMatch) {
+        /* 有 class 但不含 acc-block → 在既有 class 列表前插入 acc-block */
+        const newClassAttr = `class="acc-block ${classMatch[1]}"`;
+        newOpenTag = `<${tag} ${attrs.replace(classMatch[0], newClassAttr).trim()}>`;
+      } else {
+        /* 沒有 class 屬性 → 直接加上 */
+        newOpenTag = `<${tag} class="acc-block"${attrs}>`;
+      }
+      return newOpenTag + trimmed.slice(openMatch[0].length);
+    }
+  }
+
+  /* 不是單一完整包裹的情況（多個並列根元素，或開頭不是 div/article/section）→ 整體包一層 */
+  return `<div class="acc-block">\n${trimmed}\n</div>`;
+}
+
+/* ── 強制 CSS scope：掃描整份 CSS，把任何「沒有以 scopeSelector 開頭」的選擇器自動補上前綴 ──
+   這是最後一道防線：即使 prompt 規則要求 AI 加 scope、即使 AI 大部分時候有照做，
+   仍可能漏掉個別規則（例如單獨的 p {}、table {}、.rg-table {}），
+   這些一旦漏網，CSS 會直接作用在整個頁面，污染外層或被外層既有樣式覆蓋。
+   策略：逐條規則檢查選擇器，若選擇器（或逗號分隔的每一部分）已经以 scopeSelector 開頭則略過，
+   否則在前面補上 "scopeSelector "。@media 區塊內部的規則同樣處理（保留 @media 條件本身不變）。
+   ★ 注意：處理前先把 CSS 注釋（CSS comment 區塊）整段保護起來，避免注釋文字被誤識別為選擇器。 */
+function enforceScopePrefix(css, scopeSelector) {
+  if (!css || !scopeSelector) return css;
+  const scope = scopeSelector.trim();
+  const scopeEsc = scope.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alreadyScopedRe = new RegExp(`^${scopeEsc}(\\b|\\s|$)`);
+
+  function scopeOneSelectorList(rawSelector) {
+    /* 把選擇器文字中殘留的 CSS 注釋剝除後再做前綴判斷 */
+    const cleaned = rawSelector.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    if (!cleaned) return rawSelector; /* 純注釋或空白，原樣返回 */
+    return cleaned
+      .split(',')
+      .map(sel => {
+        const trimmedSel = sel.trim();
+        if (!trimmedSel) return trimmedSel;
+        if (/^(:root|html|body)\b/i.test(trimmedSel)) return trimmedSel;
+        if (alreadyScopedRe.test(trimmedSel)) return trimmedSel;
+        return `${scope} ${trimmedSel}`;
+      })
+      .join(', ');
+  }
+
+  /* 處理單個 CSS 規則區塊的「前置文字 + 選擇器」字串：
+     前置文字可能包含注釋佔位符、換行空白等，需要分離出來原樣保留，只對最後的選擇器做前綴。
+     策略：把整段文字按佔位符邊界分割，最後一段是真正的選擇器，前面都是注釋或空白。 */
+  function processSelectorPart(selectorPart) {
+    /* 找出所有佔位符的位置，把「真正的選擇器」定義為最後一個佔位符之後的文字 */
+    const placeholderRe = /__COMMENT_\d+__/g;
+    let lastPlaceholderEnd = 0;
+    let m;
+    while ((m = placeholderRe.exec(selectorPart)) !== null) {
+      lastPlaceholderEnd = m.index + m[0].length;
+    }
+    const prefix = selectorPart.slice(0, lastPlaceholderEnd); /* 注釋佔位符 + 前置空白 */
+    const actualSelector = selectorPart.slice(lastPlaceholderEnd);
+    if (!actualSelector.trim()) return selectorPart; /* 全是注釋，不動 */
+    return prefix + scopeOneSelectorList(actualSelector);
+  }
+
+  /* ── Step 1：把所有 CSS 注釋（CSS comment 區塊）替換成佔位符，避免注釋文字被誤識為選擇器 ── */
+  const comments = [];
+  let work = css.replace(/\/\*[\s\S]*?\*\//g, m => {
+    comments.push(m);
+    return `__COMMENT_${comments.length - 1}__`;
+  });
+
+  /* ── Step 2：保護 @media {...} 區塊，遞迴處理其內部規則 ── */
+  work = work.replace(/(@media[^{]*\{)([\s\S]*?)(\}\s*\})/g, (m, head, body, tail) => {
+    const processedBody = body.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, decls) => {
+      return `${processSelectorPart(selector)} {${decls}}`;
+    });
+    return head + processedBody + tail;
+  });
+
+  /* ── Step 3：處理 @media 以外的一般規則 ── */
+  const mediaBlocks2 = [];
+  work = work.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, m => {
+    mediaBlocks2.push(m);
+    return `__MEDIA2_PLACEHOLDER_${mediaBlocks2.length - 1}__`;
+  });
+  work = work.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, decls) => {
+    return `${processSelectorPart(selector)} {${decls}}`;
+  });
+  work = work.replace(/__MEDIA2_PLACEHOLDER_(\d+)__/g, (_, i) => mediaBlocks2[parseInt(i, 10)]);
+
+  /* ── Step 4：還原所有 CSS 注釋 ── */
+  work = work.replace(/__COMMENT_(\d+)__/g, (_, i) => comments[parseInt(i, 10)]);
+
+  return work;
+}
+
+/* ── 修正 <dl> 內違規的 <div> 包裹（保險：即使 prompt 規則要求 AI 避免，仍可能漏網） ──
+   許多 CMS 後台編輯器的 HTML 清理器無法解析 <dl><div><dt>...</dt><dd>...</dd></div></dl>
+   這種結構，貼回後台會導致內容損壞或跑版。這裡掃描每個 <dl>...</dl> 區塊，
+   若內部的 <dt>/<dd> 被 <div> 包裹，自動拆除該層 <div>，把 dt/dd 攤平直接放在 dl 下。
+   排版對齊改用 CSS Grid（由 enforceScopePrefix 之前已生成的 dl 規則或 ensureDlGridStyle 補上），
+   不再依賴 div 分組。 */
+function fixDlStructure(html) {
+  if (!/<dl\b/i.test(html)) return html;
+
+  return html.replace(/<dl\b([^>]*)>([\s\S]*?)<\/dl>/gi, (match, dlAttrs, inner) => {
+    /* 偵測 dl 內是否有 <div>...<dt>...<dd>...</div> 這種包裹模式 */
+    const hasDivWrapper = /<div\b[^>]*>\s*<dt\b/i.test(inner);
+    if (!hasDivWrapper) return match; /* 結構本來就正確，不動 */
+
+    /* 移除每個包裹 dt/dd 的 <div ...> 開標籤與對應的 </div> 收尾，
+       只保留內部的 <dt>...</dt><dd>...</dd>（或多個 dd），攤平到 dl 下一層 */
+    const flattened = inner.replace(/<div\b[^>]*>\s*((?:<dt\b[\s\S]*?<\/dt>\s*(?:<dd\b[\s\S]*?<\/dd>\s*)*)+)<\/div>/gi,
+      (divMatch, dtddContent) => dtddContent
+    );
+
+    /* 移除攤平後可能殘留的空 <dd></dd>（語意上不該存在，通常是誤把標題塞進 dl 的痕跡） */
+    const cleaned = flattened.replace(/<dd\b[^>]*>\s*<\/dd>/gi, '');
+
+    return `<dl${dlAttrs}>${cleaned}</dl>`;
+  });
+}
+
+/* ── Extract delimited block ── */
+function extractBlock(raw, tag) {
+  /* 正常情況：START 和 END 都存在 */
+  const full = raw.match(new RegExp(`%%${tag}_START%%([\\s\\S]*?)%%${tag}_END%%`));
+  if (full) return stripCodeFences(full[1].trim());
+
+  /* 備援：只有 START（回應被截斷，缺少 END）→ 取 START 之後的全部內容 */
+  const startOnly = raw.match(new RegExp(`%%${tag}_START%%([\\s\\S]*)$`));
+  if (startOnly) return stripCodeFences(startOnly[1].trim());
+
+  /* 最終備援：完全沒有標記 → 清除任何殘留的標記字串後返回，避免標記洩漏到輸出 */
+  return stripCodeFences(
+    raw.replace(new RegExp(`%%${tag}_(START|END)%%`, 'g'), '').trim()
+  );
+}
+
+/* ── Normalize HTML output: collapse excess blank lines + strip fences ── */
+function normalizeHtml(str) {
+  return stripCodeFences(str)
+    .replace(/\n{3,}/g, '\n\n')          /* 超過 2 個連續空行 → 1 個空行 */
+    .replace(/[ \t]+\n/g, '\n')           /* 行尾空白 */
+    .replace(/\n[ \t]+\n/g, '\n\n')       /* 只有空白的行 */
+    .trim();
+}
+
+/* ── 確保最終輸出格式絕對正確：<style> 在最頂端，HTML 結構在下方，兩者不重疊 ──
+   這是防止「<style> 出現在 HTML 結構內部」或「<style> 重複出現」的最後保障。
+   不論 AI 把 <style> 放在哪（article 內、第二個 chunk 重複輸出等），
+   此函式統一提取所有 <style> 內容合併為一份放最頂端，HTML 內部完全清除 <style>。 */
+function organizeStyleOutput(code) {
+  if (!code) return code;
+
+  /* 1. 收集所有 <style>...</style> 的內容（可能出現多次或嵌在 HTML 裡） */
+  const styleBodies = [];
+  const htmlWithoutStyle = code.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, body) => {
+    const trimmed = body.trim();
+    if (trimmed) styleBodies.push(trimmed);
+    return '';
+  });
+
+  /* 2. 合併去重（相同的整段 <style> body 字串去重，處理「多個 <style> 標籤完全相同」的情況） */
+  const seen = new Set();
+  const merged = styleBodies.filter(b => {
+    if (seen.has(b)) return false;
+    seen.add(b);
+    return true;
+  }).join('\n\n');
+
+  /* 3. 清理 HTML */
+  const cleanHtml = htmlWithoutStyle.replace(/\n{3,}/g, '\n\n').trim();
+  if (!merged) return cleanHtml;
+
+  /* 4. 選擇器層級去重：即使整段字串不完全相同（例如同一份 CSS 被輸出兩次，
+     但格式不同——一次緊湊、一次展開），也能抓出重複的選擇器規則。
+     策略：依序解析每條規則，正規化選擇器與宣告內容後比對是否已出現過，
+     重複的規則直接捨棄，只保留第一次出現的版本。 */
+  const dedupedCss = dedupeCssRulesBySelector(merged);
+
+  /* 5. 修剪 CSS 中與此份 HTML 無關的多餘規則 */
+  const prunedCss = pruneUnusedCssRules(dedupedCss, cleanHtml);
+
+  /* 6. 組合：<style> 在最頂端 + HTML */
+  return `<style>\n${prunedCss}\n</style>\n\n${cleanHtml}`;
+}
+
+/* ── 依選擇器去重 CSS 規則（保險：處理同一份 CSS 被輸出兩次但格式不同的情況）──
+   例如同樣的 .acc-block 規則集，一次以緊湊格式輸出、一次以展開格式輸出，
+   字串層級比對無法判斷兩者相同，但實質內容（選擇器＋宣告）是重複的。
+   策略：用與 pruneUnusedCssRules 相同的 tokenizer 解析 CSS 成規則陣列，
+   對每條規則正規化「選擇器文字」與「宣告內容」（移除多餘空白、統一順序無關的比對），
+   組成 key 比對是否重複，重複者只保留第一次出現的版本。
+   @media 區塊遞迴處理內部規則；注釋與其他無法解析的片段原樣保留不參與去重判斷。 */
+function dedupeCssRulesBySelector(css) {
+  if (!css) return css;
+
+  function normalizeSelector(selector) {
+    return selector.replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function normalizeDeclsForCompare(decls) {
+    return decls.split(';')
+      .map(d => d.replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(Boolean)
+      .sort()
+      .join(';');
+  }
+  function parseDecls(decls) {
+    const map = {};
+    decls.split(';').forEach(d => {
+      const idx = d.indexOf(':');
+      if (idx === -1) return;
+      const prop = d.slice(0, idx).replace(/\s+/g, '').trim().toLowerCase();
+      const val = d.slice(idx + 1).replace(/\s+/g, ' ').trim().toLowerCase();
+      if (prop) map[prop] = val;
+    });
+    return map;
+  }
+  /* declsB 是否被 declsA 完全涵蓋（B 的每條屬性都在 A 裡且值相同，無新增屬性） */
+  function isFullySubsumed(declsA, declsB) {
+    const mapA = parseDecls(declsA);
+    const mapB = parseDecls(declsB);
+    const keysB = Object.keys(mapB);
+    if (keysB.length === 0) return true;
+    return keysB.every(k => mapA.hasOwnProperty(k) && mapA[k] === mapB[k]);
+  }
+
+  function tokenize(src) {
+    const tokens = [];
+    let i = 0;
+    while (i < src.length) {
+      if (src.slice(i, i + 2) === '/*') {
+        const end = src.indexOf('*/', i + 2);
+        const stop = end === -1 ? src.length : end + 2;
+        tokens.push({ type: 'comment', raw: src.slice(i, stop) });
+        i = stop; continue;
+      }
+      const firstNonSpace = src.slice(i).search(/\S/);
+      if (firstNonSpace !== -1 && src[i + firstNonSpace] === '@') {
+        if (firstNonSpace > 0) {
+          tokens.push({ type: 'text', raw: src.slice(i, i + firstNonSpace) });
+          i += firstNonSpace;
+        }
+        let depth = 0, j = i;
+        while (j < src.length) {
+          if (src[j] === '{') { depth++; j++; }
+          else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+          else if (src[j] === ';' && depth === 0) { j++; break; }
+          else j++;
+        }
+        tokens.push({ type: 'at', raw: src.slice(i, j) });
+        i = j; continue;
+      }
+      const braceIdx = src.indexOf('{', i);
+      if (braceIdx === -1) {
+        tokens.push({ type: 'text', raw: src.slice(i) });
+        break;
+      }
+      const preBrace = src.slice(i, braceIdx);
+      const atIdx = preBrace.search(/@\w/);
+      if (atIdx !== -1) {
+        tokens.push({ type: 'text', raw: src.slice(i, i + atIdx) });
+        i = i + atIdx;
+        continue;
+      }
+      const selector = src.slice(i, braceIdx);
+      let depth = 0, j = braceIdx;
+      while (j < src.length) {
+        if (src[j] === '{') { depth++; j++; }
+        else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+        else j++;
+      }
+      const decls = src.slice(braceIdx + 1, j - 1);
+      tokens.push({ type: 'rule', selector, decls, raw: src.slice(i, j) });
+      i = j;
+    }
+    return tokens;
+  }
+
+  const tokens = tokenize(css);
+
+  /* ── 第一遍掃描：統計每個選擇器出現次數，偵測「整輪重複生成」的訊號 ──
+     若同一份 CSS 裡，有相當高比例的選擇器都各自出現了 2 次以上，這強烈代表
+     AI 把整段樣式完整輸出了兩輪（例如先輸出一份詳細版、又輸出一份精簡版接在後面），
+     而非「刻意疊加少數屬性做覆蓋」的正常 CSS 寫法（正常疊加只會是少數幾個選擇器
+     被追加 1-2 個屬性，不會整批選擇器都重複出現）。
+     達到這個訊號時，後續處理改採「同選擇器只保留第一次完整定義」的積極去重策略；
+     未達訊號時，保守只処理「後者完全是前者子集」的純重複，避免誤刪合法的階層疊加寫法。 */
+  const ruleTokens = tokens.filter(t => t.type === 'rule');
+  const selectorCount = new Map();
+  ruleTokens.forEach(t => {
+    const normSel = normalizeSelector(t.selector);
+    selectorCount.set(normSel, (selectorCount.get(normSel) || 0) + 1);
+  });
+  const repeatedSelectors = [...selectorCount.values()].filter(c => c >= 2).length;
+  const totalUniqueSelectors = selectorCount.size;
+  const wholesaleDuplicate = totalUniqueSelectors > 0 && (repeatedSelectors / totalUniqueSelectors) >= 0.4;
+
+  const selectorDecls = new Map(); /* normSelector -> declsString（保留中的版本，僅用於子集比對） */
+  const firstSeenSelector = new Set(); /* 已輸出過的選擇器（積極去重模式下使用） */
+  const exactSeen = new Set();
+
+  function shouldKeepRule(selector, decls) {
+    const normSel = normalizeSelector(selector);
+    const exactKey = `${normSel}__${normalizeDeclsForCompare(decls)}`;
+    if (exactSeen.has(exactKey)) return false; /* 完全相同（含值），直接丟棄 */
+    exactSeen.add(exactKey);
+
+    if (wholesaleDuplicate) {
+      /* 積極模式：偵測到整輪重複生成時，同一選擇器只保留第一次出現的完整定義 */
+      if (firstSeenSelector.has(normSel)) return false;
+      firstSeenSelector.add(normSel);
+      return true;
+    }
+
+    /* 保守模式：只丟棄「後者完全被前者涵蓋」的純重複，保留合法的階層疊加 */
+    if (selectorDecls.has(normSel)) {
+      const prevDecls = selectorDecls.get(normSel);
+      if (isFullySubsumed(prevDecls, decls)) return false;
+    }
+    selectorDecls.set(normSel, decls);
+    return true;
+  }
+
+  /* ── @media 預處理：把斷點條件相同的多個 @media 區塊合併成一個再統一去重 ──
+     原本各自獨立呼叫 dedupeCssRulesBySelector 處理每個 @media body，會導致
+     「兩個 @media (max-width:600px) 區塊各自格式略有不同」時無法互相比對而誤判為不同、
+     都被保留。改為先依正規化後的斷點條件分組，組內所有 body 合併成一份文字再統一去重，
+     確保跨多個同斷點 @media 區塊的重複規則也能被抓到。 */
+  const mediaTokenIndices = [];
+  tokens.forEach((tok, idx) => {
+    if (tok.type === 'at' && /^@media\b/i.test(tok.raw)) mediaTokenIndices.push(idx);
+  });
+  const mediaGroups = new Map(); /* normalizedHead -> { bodies: [], firstIndex } */
+  mediaTokenIndices.forEach(idx => {
+    const raw = tokens[idx].raw;
+    const braceIdx = raw.indexOf('{');
+    const head = raw.slice(0, braceIdx + 1);
+    let d = 1, k = braceIdx + 1;
+    while (k < raw.length && d > 0) {
+      if (raw[k] === '{') d++;
+      else if (raw[k] === '}') d--;
+      k++;
+    }
+    const body = raw.slice(braceIdx + 1, k - 1);
+    const normHead = head.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!mediaGroups.has(normHead)) {
+      mediaGroups.set(normHead, { head, bodies: [], firstIndex: idx });
+    }
+    mediaGroups.get(normHead).bodies.push(body);
+  });
+  /* 對每組合併後的 body 統一去重一次，結果快取，輸出時只在 firstIndex 位置使用 */
+  const mediaMergedResult = new Map(); /* tokenIndex(firstIndex) -> 合併去重後的完整 @media 字串 */
+  mediaGroups.forEach(({ head, bodies, firstIndex }) => {
+    const mergedBody = bodies.join('\n');
+    const dedupedBody = dedupeCssRulesBySelector(mergedBody);
+    if (dedupedBody.trim()) {
+      mediaMergedResult.set(firstIndex, `${head}${dedupedBody}}`);
+    } else {
+      mediaMergedResult.set(firstIndex, '');
+    }
+  });
+  const mediaNonFirstIndices = new Set(mediaTokenIndices.filter(idx => !mediaMergedResult.has(idx)));
+
+  const result = tokens.map((tok, idx) => {
+    if (tok.type === 'comment' || tok.type === 'text') return tok.raw;
+    if (tok.type === 'rule') {
+      return shouldKeepRule(tok.selector, tok.decls) ? tok.raw : '';
+    }
+    if (tok.type === 'at') {
+      if (/^@(?:keyframes|font-face|charset|import)\b/i.test(tok.raw)) return tok.raw;
+      if (/^@media\b/i.test(tok.raw)) {
+        if (mediaMergedResult.has(idx)) return mediaMergedResult.get(idx); /* 該斷點群組的代表輸出位置 */
+        return ''; /* 同斷點群組中非代表位置的 @media，內容已合併到代表位置，這裡清空 */
+      }
+      return tok.raw;
+    }
+    return tok.raw;
+  }).join('');
+
+  return result.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/* ── 修剪 CSS 中與 HTML 無關的多餘規則 ──
+   AI 常常「預防性」地生成大量 HTML 裡根本沒用到的元素規則（如 HTML 無 <button> 卻有 .acc-block button {}），
+   這些多餘規則讓 <style> 虛胖、貼回後台的原始碼看起來混亂。
+   策略：解析每條 CSS 規則的選擇器，從中抽取「標籤名稱」和「class 名稱」，
+   到 HTML 裡比對是否實際存在，若整條規則的所有選擇器都找不到對應元素，就整條移除。
+   保留例外：@keyframes、@font-face、:root、通用選擇器、偽類/偽元素（這些不對應具體 HTML 元素）。 */
+function pruneUnusedCssRules(css, html) {
+  if (!css || !html) return css;
+
+  /* 判斷一個選擇器是否在 HTML 裡實際存在對應元素 */
+  function selectorUsedInHtml(selector) {
+    const withoutScope = selector.replace(/\.acc-block\s*/g, '').trim();
+    if (!withoutScope) return true; /* 純 .acc-block，保留 */
+    /* 偽類/偽元素/通用 → 保留 */
+    if (/^[*:]/.test(withoutScope) || /::/.test(withoutScope)) return true;
+
+    /* 抽取標籤名稱 */
+    const tagMatch = withoutScope.match(/^([a-z][a-z0-9-]*)[\s:.[>,~+#\[{]?/i);
+    if (tagMatch) {
+      const tag = tagMatch[1].toLowerCase();
+      const knownTags = /^(h[1-6]|p|a|ul|ol|li|table|thead|tbody|tfoot|tr|th|td|div|span|section|article|figure|figcaption|dl|dt|dd|nav|aside|main|header|footer|form|input|select|textarea|button|label|img|video|audio|blockquote|pre|code|em|strong|mark|hr|details|summary|caption|colgroup|col)$/;
+      if (knownTags.test(tag)) {
+        return new RegExp('<' + tag + '[\\s>]', 'i').test(html);
+      }
+      return true; /* 未知標籤保守保留 */
+    }
+
+    /* 抽取 class 名稱 */
+    const classMatches = [...withoutScope.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    if (classMatches.length > 0) {
+      return classMatches.some(cls =>
+        new RegExp('class=["\'][^"\']*\\b' + cls + '\\b').test(html)
+      );
+    }
+    return true; /* 屬性選擇器等，保守保留 */
+  }
+
+  /* 判斷一整條規則（可能有逗號分隔的多個選擇器）是否保留 */
+  function shouldKeepRule(selectorList) {
+    const sels = selectorList.split(',').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    return sels.some(sel => selectorUsedInHtml(sel));
+  }
+
+  /* 把 CSS 字串分割成「token 陣列」：每個 token 是一條規則、一個 @block、或空白/注釋 */
+  function tokenize(src) {
+    const tokens = [];
+    let i = 0;
+    while (i < src.length) {
+      /* 注釋 */
+      if (src.slice(i, i+2) === '/*') {
+        const end = src.indexOf('*/', i+2);
+        const stop = end === -1 ? src.length : end + 2;
+        tokens.push({ type: 'comment', raw: src.slice(i, stop) });
+        i = stop; continue;
+      }
+      /* @ 規則（含前置空白的情況：先掃到第一個非空白字元再判斷） */
+      const firstNonSpace = src.slice(i).search(/\S/);
+      if (firstNonSpace !== -1 && src[i + firstNonSpace] === '@') {
+        /* 把前置空白當成 text token 先記下，讓 @ 規則乾淨地從 @ 開始 */
+        if (firstNonSpace > 0) {
+          tokens.push({ type: 'text', raw: src.slice(i, i + firstNonSpace) });
+          i += firstNonSpace;
+        }
+        let depth = 0, j = i;
+        while (j < src.length) {
+          if (src[j] === '{') { depth++; j++; }
+          else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+          else if (src[j] === ';' && depth === 0) { j++; break; }
+          else j++;
+        }
+        tokens.push({ type: 'at', raw: src.slice(i, j) });
+        i = j; continue;
+      }
+      /* 一般規則：找到下一個 { 為起點，匹配對應的 } */
+      const braceIdx = src.indexOf('{', i);
+      if (braceIdx === -1) {
+        tokens.push({ type: 'text', raw: src.slice(i) });
+        break;
+      }
+      /* 確認 braceIdx 之前沒有 @ 符號（避免把 @media 誤認成一般規則的選擇器） */
+      const preBrace = src.slice(i, braceIdx);
+      const atIdx = preBrace.search(/@\w/);
+      if (atIdx !== -1) {
+        /* 在選擇器裡發現 @，代表當前位置到 @ 之間是垃圾文字，先當 text 跳過，下一輪重新處理 @ */
+        tokens.push({ type: 'text', raw: src.slice(i, i + atIdx) });
+        i = i + atIdx;
+        continue;
+      }
+      const selector = src.slice(i, braceIdx);
+      let depth = 0, j = braceIdx;
+      while (j < src.length) {
+        if (src[j] === '{') { depth++; j++; }
+        else if (src[j] === '}') { depth--; j++; if (depth === 0) break; }
+        else j++;
+      }
+      tokens.push({ type: 'rule', selector, raw: src.slice(i, j) });
+      i = j;
+    }
+    return tokens;
+  }
+
+  const tokens = tokenize(css);
+  const result = tokens.map(tok => {
+    if (tok.type === 'comment' || tok.type === 'text') return tok.raw;
+    if (tok.type === 'rule') {
+      return shouldKeepRule(tok.selector) ? tok.raw : '';
+    }
+    if (tok.type === 'at') {
+      const raw = tok.raw;
+      /* @keyframes / @font-face / @charset → 保留 */
+      if (/^@(?:keyframes|font-face|charset|import)\b/i.test(raw)) return raw;
+      /* @media → 遞迴修剪內部規則 */
+      if (/^@media\b/i.test(raw)) {
+        const braceIdx = raw.indexOf('{');
+        const head = raw.slice(0, braceIdx + 1);
+        /* 用括號深度計數找到最外層對應的 }，而非 lastIndexOf（lastIndexOf 遇嵌套規則會抓錯位置） */
+        let d = 1, k = braceIdx + 1;
+        while (k < raw.length && d > 0) {
+          if (raw[k] === '{') d++;
+          else if (raw[k] === '}') d--;
+          k++;
+        }
+        const body = raw.slice(braceIdx + 1, k - 1);
+        const tail = raw.slice(k - 1);
+        const prunedBody = pruneUnusedCssRules(body, html);
+        return prunedBody.trim() ? head + prunedBody + tail : '';
+      }
+      return raw;
+    }
+    return tok.raw;
+  }).join('');
+
+  return result.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/* ── 將生成的 HTML 寫入手機版預覽 iframe ──
+   改用 iframe + srcdoc 而非 div.innerHTML，是因為 @media (max-width) 這類響應式
+   查詢的判斷依據是「視口（viewport）寬度」，而 div 容器無論用 CSS 設多窄，
+   都不會被瀏覽器當成獨立視口，@media 查詢仍然依照外層瀏覽器視窗寬度判斷，
+   導致手機框架雖然視覺上變窄了，內部排版卻完全沒有觸發響應式樣式。
+   iframe 是瀏覽器原生支援的獨立渲染環境，其寬度本身就是一個真正的視口，
+   @media 查詢會正確依 iframe 寬度（這裡固定為手機版寬度）判斷並觸發對應樣式。 */
+function renderPhonePreview(html) {
+  const iframe = document.getElementById('phone-screen');
+  if (!html) {
+    iframe.removeAttribute('srcdoc');
+    iframe.src = 'about:blank';
+    return;
+  }
+  const doc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-size: 15px; line-height: 1.7; color: #1a1a1a; padding: 20px 16px; box-sizing: border-box; }
+  img, video { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+  iframe.srcdoc = doc;
+}
+
+/* ── Progress bar update ── */
+function setProgress(step, total, msg) {
+  const pct = Math.round((step / total) * 100);
+  showStatus('loading', `
+    <span style="flex:1">${msg}</span>
+    <span style="font-size:11px;opacity:.7;white-space:nowrap;margin-left:8px">${step}／${total} 完成</span>
+  `, pct);
+}
+
+/* ── Three-phase generate pipeline ── */
+async function generate() {
+  const btn = document.getElementById('gen-btn');
+  const wcag = document.getElementById('wcag-level').value;
+  const lang = document.getElementById('output-lang').value;
+  const isAAA = wcag === 'AAA';
+
+  btn.disabled = true;
+  document.getElementById('gen-text').textContent = '生成中…';
+  document.getElementById('gen-icon').outerHTML = '<div class="spinner" aria-hidden="true" id="gen-icon"></div>';
+
+  /* 確保輸出面板可見 */
+  document.getElementById('output-area') && (document.getElementById('output-area').style.display = 'flex');
+  document.getElementById('empty-output') && (document.getElementById('empty-output').style.display = 'none');
+
+  try {
+    const userContent = await buildUserContent();
+    if (!userContent) {
+      showStatus('error', '請先填入內容再生成');
+      resetBtn();
+      return;
+    }
+
+    /* 共用規則 */
+    const sharedRules = `你是無障礙 HTML 生成專家，嚴格依照 WCAG 2.2 ${wcag} 及台灣網站無障礙規範（110.07）。
+規則：
+1. 標題層級規則（嚴格遵守）：
+   - 移除原始內容中所有的 <h1> 與 <h2>（h1/h2 由外層固定架構提供，片段內不可出現）
+   - 將標題層級整體平移，使最高層級對齊 <h3>，並保留原有的相對層次關係：原 h1→h3、原 h2→h4、原 h3→h5（依此類推，最深不超過 h6）
+   - 若原始內容最高只到 h2，則 h2→h3、其下 h3→h4，依此類推
+   - 嚴禁把不同層級的標題全部壓成同一個 h3，必須維持階層
+   - 標題文字內容保留不變，只調整標籤層級，順序符合內容語意
+2. 不加 lang 屬性（外層 <html> 已設定）
+3. 圖片結構固定如下，figcaption 內的詳細說明必須依資訊類型拆分成多個 <p>，每個 <p> 只包含一類資訊（例如標題、時間、地點、講者、主辦單位各自一個 <p>），不可全部擠成一行：
+   <figure class="acc-block__figure">
+     <img src="[src]" alt="簡短語意 alt（一句話）">
+     <figcaption>
+       <p class="acc-block__caption-title">圖片主題或標題</p>
+       <p class="acc-block__caption-meta">時間／地點等資訊</p>
+       <p class="acc-block__caption-desc">其他補充說明</p>
+     </figcaption>
+   </figure>
+3a. 【必須】.acc-block__figure 區塊本身必須水平置中：figure 設定 margin: 0 auto（或 text-align: center，視覺需求擇一）；其內部的 img 必須 display: block、margin: 0 auto，確保圖片在容器內置中顯示，不可靠左對齊；figcaption 文字置中（text-align: center）
+4. CSS 全部 scope 在 .acc-block 父層下，絕不污染全域
+5. 【必須】最外層容器（.acc-block 或最外層的 article/section）：不可設定 max-width，寬度應為 width: 100%；必須設定 padding: 1rem 作為內容與邊框之間的預設留白（防止內容緊貼容器邊緣），如版面需要可適度調整但不可為 0
+5a. 【必須】響應式設計（RWD）：CSS 必須包含至少一組 @media (max-width: 600px) 斷點，針對手機寬度調整版面，內容包括但不限於：
+   - 任何多欄佈局（如 grid-template-columns 為兩欄以上、flex 多欄並排）在手機寬度下改為單欄（grid-template-columns: 1fr 或 flex-direction: column）
+   - 字級在手機寬度下可適度縮小（例如 h3 從 1.5rem 降到約 1.25~1.3rem），避免標題在小螢幕上過大導致換行混亂
+   - padding／margin 在手機寬度下可適度縮小（例如最外層 padding 從 1rem 降到 0.75rem），避免內容被邊距過度壓縮
+   - 若有 <table>，手機寬度下用 overflow-x: auto 包裹或改為區塊式排列，避免表格在小螢幕被壓扁
+   - 若有並排的圖片＋文字、左右兩欄卡片等版面，手機寬度下一律改為上下堆疊（單欄）
+   - @media 內的所有規則同樣必須維持 .acc-block 前綴 scope，不可省略
+6. 【必須】字級系統（font-size）：
+   - 最外層容器（.acc-block）設定 font-size: 1rem 作為基準
+   - 其餘所有標籤的 font-size 一律用相對單位（rem 或 em），不可寫死 px
+   - 依語意層次設計大小，由大到小：h3（約 1.4~1.6rem）> h4（約 1.2~1.3rem）> h5（約 1.05~1.15rem）> 內文 p／li／td（1rem）> 次要資訊如圖說、時間戳、版權（0.85~0.9rem）
+   - 同一語意層級的標籤字級必須一致（例如所有 h4 都用同樣大小，不可不同章節各自不同）
+   - 雙語對照時，主要語言與次要語言可用相同字級或次要語言略小（如 0.95em），但差異不可過大
+7. 【絕對要求】CSS 嚴格 scope 規範（避免污染外層頁面或被外層固定樣式覆蓋）：
+   - 每一條 CSS 規則的選擇器都必須以 .acc-block 開頭（例如 .acc-block p、.acc-block table th，不可寫成單獨的 p { }、table th { } 等無 scope 選擇器）
+   - 絕不可出現裸露的標籤選擇器（如單獨的 h3 { }、a { }、img { }），一律要加 .acc-block 前綴
+   - 唯一例外：@media 查詢內部的規則一樣要維持 .acc-block 前綴，不可省略
+   - 這是為了確保產出的程式碼可以安全嵌入任何既有頁面，不會繼承或污染外層既有的 CSS
+8. 清除所有 inline style，整理入 CSS；CSS 只生成此份 HTML 實際用到的規則，不可「預防性地」為 HTML 裡沒有的元素（如沒有 button 卻寫 .acc-block button {}）生成空規則或多餘規則
+9. 使用語意化標籤：article、section、figure、nav、aside
+10. 表單需有 <label for>，錯誤需 role="alert"
+11. 互動元素可鍵盤操作，焦點環完整（不得 outline:none）
+12. 對比值：${isAAA ? '文字 7:1（大文字 4.5:1），AAA' : '文字 4.5:1（大文字 3:1），AA'}
+13. 語言：${lang === 'zh-TW' ? '繁體中文' : 'English'}
+14. <dl>/<dt>/<dd> 結構規範（嚴格遵守，避免後台編輯器解析錯誤）：
+    - <dl> 內只能直接放 <dt> 與 <dd>，絕對禁止在 <dl> 內插入 <div> 或其他標籤包裹 dt/dd（例如禁止 <dl><div><dt>...</dt><dd>...</dd></div></dl> 這種寫法），許多 CMS 後台編輯器的 HTML 清理器無法正確解析這種結構，會導致貼回後台後內容損壞或跑版
+    - 排版／對齊效果完全用 CSS Grid 在 <dl> 本身實現：.acc-block dl { display: grid; grid-template-columns: max-content 1fr; row-gap: 10px; column-gap: 1rem; } 讓瀏覽器自動把每組相鄰的 dt/dd 排成一行，不需要任何額外包裹元素
+    - <dt> 加 font-weight: 600，作為標籤欄位
+    - <dd> margin: 0，與對應的 dt 同列對齊
+    - 若某個項目其實是區塊標題（不是「標籤：內容」的配對資料），不要放進 <dl>，改用 <h4> 或 <p> 表達，<dl> 內每一組 dt 都必須對應有實際內容的 dd，不可出現空的 <dd></dd>
+15. 連結語意規範（必須完整實作）：
+    - <a href="tel:...">：加 title="撥打電話至 [號碼]" 及 aria-label="撥打電話至 [號碼]"
+    - <a href="mailto:...">：加 title="寄送電子郵件至 [信箱]" 及 aria-label="寄送電子郵件至 [信箱]"
+    - <a href="..." target="_blank">：加 title="[連結名稱]（另開新視窗）" 及 aria-label="[連結名稱]（另開新視窗）"
+    - 所有連結文字必須能獨立表達目的，不可只寫「點此」「更多」
+16. 【必須】所有 <ul> 與 <ol> 的 CSS 預設加上 padding-left: 1.1rem; list-style: auto;（讓項目符號／編號正常顯示且有適當縮排）
+17. 【必須】依內容語意設計合適的間距，不可讓元素緊貼在一起：<p> margin-bottom ≥ 0.9rem 且 line-height ≥ 1.7；標題 margin-top ≥ 1.5rem、margin-bottom ≥ 0.6rem；連續的人名／職稱／純文字條列每行 margin-bottom ≥ 0.4rem；雙語對照段落之間 margin-bottom ≥ 0.5rem；不同章節區塊之間 margin-top ≥ 2rem
+18. 【必須】若內容含 <table>，必須設計完整表格樣式：
+    - table：width: 100%、border-collapse: collapse、margin: 1rem 0
+    - th/td：border: 1px solid（中性灰色，如 #d0d0d0）、padding: 0.6rem 0.8rem、text-align: left、vertical-align: top
+    - th（表頭）：font-weight: 600、background-color 淺色區隔（如淡灰或品牌淺色）
+    - tbody tr:nth-child(even)：淡色底紋（如 #f7f7f7）增加可讀性（斑馬紋）
+    - 若表格含編號欄位（如 1, 2, 3...）：該欄位 width 縮小（如 width: 3rem）、text-align: center
+    - 響應式：手機寬度（max-width: 600px）時改為區塊式排列或允許橫向捲動（overflow-x: auto 包裹 table）
+19. 其他常見元素的視覺規範（出現時必須設計樣式，不可留瀏覽器預設外觀）：
+    - <blockquote>：左側 border-left: 4px solid（品牌色）、padding-left: 1rem、color 略淺、font-style 可斜體、margin: 1rem 0
+    - <strong>/<b>：font-weight: 700；<em>/<i>：font-style: italic；<mark>：background-color 淡黃色高亮、padding: 0 2px
+    - <code>（行內）：background-color 淡灰、padding: 2px 6px、border-radius: 4px、font-family monospace、font-size 略小
+    - <pre>：background-color 深灰或淡灰區塊、padding: 1rem、border-radius: 6px、overflow-x: auto、line-height 1.6
+    - <button>：padding: 0.6rem 1.2rem、border-radius: 6px、background-color 品牌色、color 白、border: none、cursor: pointer，並有 :hover（變深或加陰影）與 :focus-visible（明顯外框）狀態
+    - <input>/<select>/<textarea>：border: 1px solid #ccc、border-radius: 4px、padding: 0.5rem 0.75rem、width: 100%、box-sizing: border-box，並有 :focus 狀態（outline 或 border 變色）
+    - <details>/<summary>：summary 加 cursor: pointer、font-weight: 600；details 展開時內容 padding-top: 0.5rem
+    - <nav>：若為條列式選單，連結間距 gap ≥ 1rem，當前頁可用底線或顏色標示
+    - <aside>：與主內容視覺區隔，例如左側 border 或淡色背景、padding: 1rem、border-radius: 6px
+    - <hr>：border: none、border-top: 1px solid #e0e0e0、margin: 2rem 0
+    - 內文中單獨出現的 <img>（不在 figure 內）：max-width: 100%、height: auto、border-radius 可選、margin: 0.75rem 0
+    - <video>/<audio>：max-width: 100%、margin: 1rem 0
+    - 強調用的徽章／標籤文字（如截止日期、狀態標示）：可用 <span> 包裹並給 background-color 淡色、padding: 2px 8px、border-radius: 4px、font-weight: 600 做視覺強調，不可只用純文字顏色`;
+
+    const userMsg = typeof userContent === 'string'
+      ? [{ role: 'user', content: userContent }]
+      : [{ role: 'user', content: userContent }];
+
+    /* ── 共用：HTML 切割（依語意邊界，threshold 字元觸發分段） ── */
+    const CHUNK_THRESHOLD = 1200;
+
+    /* 偵測並拆解「單一巨大表格」：若整份內容（或內容主體）被一個 <table> 撐爆門檻，
+       一般的標籤邊界切割會失效（因為只有 1 個 <table> 起始點可切）。
+       這裡改用 <tr> 為切割單位，並把表格前綴（含 <table> 開標籤、<caption>、<thead>）
+       複製到每個 chunk 開頭，確保 AI 收到的每段都是結構完整、可獨立解析的小表格。
+       回傳 null 代表此函式判斷不適用（不是巨大單一表格情況），呼叫端應 fallback 到一般切割。 */
+    function splitGiantTable(html, threshold) {
+      /* 尋找最長的 <table>...</table> 區塊 */
+      const tableMatches = [...html.matchAll(/<table\b[\s\S]*?<\/table>/gi)];
+      if (!tableMatches.length) return null;
+
+      /* 找出長度最大的表格，且必須遠超門檻才視為「巨大表格」情況 */
+      let longest = tableMatches[0];
+      tableMatches.forEach(m => { if (m[0].length > longest[0].length) longest = m; });
+      if (longest[0].length <= threshold * 1.3) return null;
+
+      const tableHtml = longest[0];
+      const beforeTable = html.slice(0, longest.index);
+      const afterTable = html.slice(longest.index + tableHtml.length);
+
+      /* 拆出表格前綴（<table ...> 開標籤 + <caption> + <thead>...</thead>，若存在） */
+      const openTagMatch = tableHtml.match(/^<table\b[^>]*>/i);
+      const openTag = openTagMatch ? openTagMatch[0] : '<table>';
+      const captionMatch = tableHtml.match(/<caption\b[^>]*>[\s\S]*?<\/caption>/i);
+      const caption = captionMatch ? captionMatch[0] : '';
+      const theadMatch = tableHtml.match(/<thead\b[^>]*>[\s\S]*?<\/thead>/i);
+      const thead = theadMatch ? theadMatch[0] : '';
+      const tablePrefix = openTag + caption + thead;
+
+      /* 取出 tbody 內（或無 tbody 時整個 table 內，扣除 thead/caption 之後）的所有 <tr> */
+      const tbodyMatch = tableHtml.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i);
+      const rowSource = tbodyMatch ? tbodyMatch[1] : tableHtml.replace(openTag, '').replace(caption, '').replace(thead, '').replace(/<\/table>\s*$/i, '');
+      const rows = rowSource.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+
+      if (rows.length < 2) return null; /* 列數太少，沒有切割意義，交給一般流程 */
+
+      /* 將 rows 依 threshold 分組，每組前面加上 tablePrefix，後面補 </tbody></table> */
+      const rowChunks = [];
+      let currentRows = '';
+      rows.forEach(row => {
+        if ((currentRows + row).length > threshold && currentRows.length > 0) {
+          rowChunks.push(currentRows);
+          currentRows = row;
+        } else {
+          currentRows += row;
+        }
+      });
+      if (currentRows) rowChunks.push(currentRows);
+
+      /* 組裝每個 chunk：第一段帶 beforeTable + 表格前綴，其餘段也帶表格前綴（讓每段對 AI 而言都是合法表格），
+         最後一段加回 afterTable。合併時會用 mergeTableChunks 去除重複的表格框架。 */
+      const chunks = rowChunks.map((rowsGroup, idx) => {
+        const isFirst = idx === 0;
+        const isLast = idx === rowChunks.length - 1;
+        let piece = tablePrefix + '<tbody>' + rowsGroup + '</tbody></table>';
+        if (isFirst) piece = beforeTable + piece;
+        if (isLast) piece = piece + afterTable;
+        return piece;
+      });
+
+      return { chunks, isTableSplit: true };
+    }
+
+    function splitHtmlChunks(html, threshold) {
+      if (html.length <= threshold) return [html];
+
+      /* 優先檢查：是否為「單一巨大表格」情況，是的話用專屬的列切割邏輯 */
+      const giantTableResult = splitGiantTable(html, threshold);
+      if (giantTableResult) return giantTableResult.chunks;
+
+      /* 安全切點檢查：判斷某個字元位置是否落在 HTML 標籤內部（< 與 > 之間，
+         包含屬性值如 alt="..." 中途）。若是，則不可在此切割，否則會產生
+         破碎的標籤導致後續解析或 AI 處理失敗。 */
+      function isInsideTag(text, pos) {
+        const lastOpen = text.lastIndexOf('<', pos);
+        const lastClose = text.lastIndexOf('>', pos);
+        /* 若最近的 < 比最近的 > 更晚出現，代表目前位置仍在某個標籤內 */
+        return lastOpen > lastClose;
+      }
+
+      /* 從指定位置開始，往前尋找最近一個「不在標籤內」的安全切點。
+         若往前找不到（極端情況），改往後找；都找不到則退回原位置。 */
+      function findSafeCutPoint(text, pos) {
+        if (!isInsideTag(text, pos)) return pos;
+        for (let i = pos; i >= Math.max(0, pos - 2000); i--) {
+          if (!isInsideTag(text, i)) return i;
+        }
+        for (let i = pos; i < Math.min(text.length, pos + 2000); i++) {
+          if (!isInsideTag(text, i)) return i;
+        }
+        return pos; /* 理論上不會走到這 */
+      }
+
+      /* 多層級切割點偵測：依序嘗試，找到第一個「能產生切割點」的層級 */
+      const splitPatterns = [
+        /(?=<section[\s>])/i,                                   /* 1. <section> 邊界 */
+        /(?=<h[3-4][\s>])/i,                                    /* 2. <h3>/<h4> 標題邊界 */
+        /(?=<!--[\s\S]*?-->)/,                                  /* 3. HTML 註解（常用於標記課程/區塊分隔） */
+        /(?=<table[\s>])/i,                                     /* 4. <table> 邊界（表格密集文件） */
+        /(?=<tr[\s>])/i,                                        /* 5. <tr> 邊界（單一表格但仍可逐列切） */
+        /(?=<p\s+class="course-title")/i,                       /* 6. 課程條目段落邊界（單行密集格式常見） */
+        /(?=<p\s+style="[^"]*font-size:\s*1\.[2-9])/i,          /* 7. 視覺上的大標題段落（無語意標籤但字級明顯較大） */
+        /(?=<div[\s>])/i,                                       /* 8. <div> 邊界（最後手段，較細碎但安全） */
+        /(?=<p[\s>])/i,                                         /* 9. 任意 <p> 邊界（最終語意保底） */
+      ];
+
+      function trySplit(text, pattern) {
+        const parts = text.split(pattern).filter(p => p.length > 0);
+        return parts.length > 1 ? parts : null;
+      }
+
+      let parts = null;
+      for (const pattern of splitPatterns) {
+        const result = trySplit(html, pattern);
+        /* 確認切割後每段大致合理（不會切出一堆極短碎片或單一巨大區塊不變） */
+        if (result && result.length > 1) {
+          parts = result;
+          break;
+        }
+      }
+
+      /* 所有標籤層級都找不到切割點 → 依字元數硬切（保底，確保絕對會分段）
+         每個切點都先校正到安全位置，避免切在標籤或屬性值中間。 */
+      if (!parts) {
+        parts = [];
+        let i = 0;
+        while (i < html.length) {
+          let end = Math.min(i + threshold, html.length);
+          if (end < html.length) end = findSafeCutPoint(html, end);
+          if (end <= i) end = Math.min(i + threshold, html.length); /* 防止死迴圈 */
+          parts.push(html.slice(i, end));
+          i = end;
+        }
+      }
+
+      /* 依 threshold 重新組裝相鄰片段，避免切得過細導致過多 API 呼叫 */
+      const chunks = [];
+      let current = '';
+      parts.forEach(part => {
+        if ((current + part).length > threshold && current.length > 0) {
+          chunks.push(current);
+          current = part;
+        } else {
+          current += part;
+        }
+      });
+      if (current) chunks.push(current);
+
+      const finalChunks = chunks.filter(c => c.trim());
+      /* 最終保險：若因任何原因仍只切出 1 段，但長度明顯超標，強制對半切（同樣套用安全切點校正） */
+      if (finalChunks.length === 1 && finalChunks[0].length > threshold * 1.5) {
+        const mid = Math.floor(finalChunks[0].length / 2);
+        const cut = findSafeCutPoint(finalChunks[0], mid);
+        return [finalChunks[0].slice(0, cut), finalChunks[0].slice(cut)].filter(c => c.trim());
+      }
+      return finalChunks.length ? finalChunks : [html];
+    }
+    function stripWrappers(code) {
+      return stripCodeFences(code)
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+        .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
+        .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+        .replace(/<meta[^>]*>/gi, '')
+        .trim();
+    }
+    /* 收集第一份 <style> 內容作為共用 CSS，並移除所有片段中的全部 <style> 區塊 */
+    function dedupeStyles(htmlPieces) {
+      let cssCollected = '';
+      const cleanedPieces = htmlPieces.map(piece => {
+        const matches = [...piece.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+        if (matches.length && !cssCollected) {
+          cssCollected = matches[0][1].trim();
+        }
+        /* global 移除所有 style，不論第幾份 */
+        return piece.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').trim();
+      });
+      return { cleanedPieces, css: cssCollected };
+    }
+
+    /* ── 表格感知合併：把因「巨大表格分段」產生、各自帶有完整 <table>...</table> 框架的多個片段，
+       合併回單一正確的表格（避免重複的 <table>/<thead>/<caption>，並合併所有 <tbody> 列）。
+       對於不是表格延續的一般片段，原樣保留、直接接在一起。
+       判斷依據改用「片段內是否含有完整 <table>...</table>」而非「片段開頭是否為 <table」，
+       因為第一個片段常帶有前綴內容（如 <style> 或 <div> 包裹），開頭未必直接是 <table。 */
+    function mergeTableChunks(pieces) {
+      if (pieces.length <= 1) return pieces.join('\n');
+
+      const hasFullTable = (p) => /<table\b[^>]*>[\s\S]*<\/table>/i.test(p);
+
+      /* 找出含表格的片段索引；若數量 < 2，不需要表格合併邏輯，原樣處理 */
+      const tableIndices = [];
+      pieces.forEach((p, idx) => { if (hasFullTable(p)) tableIndices.push(idx); });
+
+      if (tableIndices.length < 2) return pieces.join('\n');
+
+      /* 確認這些含表格的片段是否「連續」（中間沒有夾雜其他非表格片段），
+         這是「巨大表格列切割」的典型特徵：所有 chunk 都是同一表格的延續。 */
+      const isConsecutive = tableIndices.every((idx, k) => k === 0 || idx === tableIndices[k - 1] + 1);
+      if (!isConsecutive) return pieces.join('\n');
+
+      const firstIdx = tableIndices[0];
+      const lastIdx = tableIndices[tableIndices.length - 1];
+
+      /* 片段中表格之前／之後可能殘留的非表格內容（例如第一段的 <style>/<div> 前綴、最後一段表格後的附註） */
+      const beforeFirst = pieces.slice(0, firstIdx).join('\n');
+      const afterLast = pieces.slice(lastIdx + 1).join('\n');
+
+      const tableGroup = pieces.slice(firstIdx, lastIdx + 1);
+      const first = tableGroup[0];
+      const last = tableGroup[tableGroup.length - 1];
+
+      /* 從第一段抽取 table 開標籤、caption、thead（作為合併後表格的框架） */
+      const openTagMatch = first.match(/<table\b[^>]*>/i);
+      const openTag = openTagMatch ? openTagMatch[0] : '<table>';
+      const captionMatch = first.match(/<caption\b[^>]*>[\s\S]*?<\/caption>/i);
+      const caption = captionMatch ? captionMatch[0] : '';
+      const theadMatch = first.match(/<thead\b[^>]*>[\s\S]*?<\/thead>/i);
+      const thead = theadMatch ? theadMatch[0] : '';
+
+      /* 片段中 table 標籤之前的內容（例如第一段的 <style>...<div...>），保留在最前面 */
+      const tablePrefixInFirst = openTagMatch ? first.slice(0, first.indexOf(openTagMatch[0])) : '';
+
+      /* 收集每個表格片段內 <tbody> 的所有 <tr> 列；若無 tbody 標籤則直接抓該片段內的所有 <tr> */
+      let allRows = '';
+      tableGroup.forEach(seg => {
+        const tbodyMatch = seg.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i);
+        if (tbodyMatch) {
+          allRows += tbodyMatch[1];
+        } else {
+          /* 沒有 tbody 標籤時，取出該片段內所有 <tr>，但排除已經算進 thead 的表頭列 */
+          const theadInner = theadMatch ? theadMatch[0] : '';
+          const segWithoutThead = theadInner ? seg.replace(theadInner, '') : seg;
+          const rows = segWithoutThead.match(/<tr\b[\s\S]*?<\/tr>/gi);
+          if (rows) allRows += rows.join('');
+        }
+      });
+
+      /* 最後一段 </table> 之後可能殘留的尾段內容（例如表格下方的附註文字） */
+      const afterTableMatch = last.match(/<\/table>([\s\S]*)$/i);
+      const afterTableInLast = afterTableMatch ? afterTableMatch[1] : '';
+
+      const mergedTable = tablePrefixInFirst + openTag + caption + thead +
+        '<tbody>' + allRows + '</tbody></table>' + afterTableInLast;
+
+      return [beforeFirst, mergedTable, afterLast].filter(Boolean).join('\n');
+    }
+
+    /* ── HTML 優化／重新生成 模式：自動分段，防截斷、防 CSS 重複 ── */
+    if (currentTab === 'html') {
+
+      const isOptimize = htmlMode === 'optimize';
+      const htmlSystemBase = `你是無障礙 HTML 生成專家，嚴格依照 WCAG 2.2 ${wcag} 及台灣網站無障礙規範（110.07）。
+規則：
+1. 標題層級規則（嚴格遵守）：移除所有 <h1>/<h2>，標題層級整體平移使最高對齊 h3 並保留相對層次（h1→h3、h2→h4、h3→h5…，最深 h6）；若最高只到 h2 則 h2→h3、h3→h4；嚴禁把不同層級壓成同一 h3，文字內容不變
+2. 不加 lang 屬性
+3. 圖片：<figure class="acc-block__figure"><img alt="簡短語意"><figcaption><p>...</p></figcaption></figure>；【必須】.acc-block__figure 必須水平置中（margin:0 auto），img 設 display:block、margin:0 auto，figcaption 文字置中（text-align:center），不可靠左對齊
+4. CSS 全部 scope 在 .acc-block 父層下
+5. 清除所有 inline style，整理進 CSS；CSS 只生成此份 HTML 實際用到的規則，不可為 HTML 裡沒有的元素寫多餘規則
+6. 使用語意化標籤：article、section、figure、nav、aside
+7. 連結補 title/aria-label（tel/mailto/target="_blank" 對應語意）
+8. 互動元素可鍵盤操作，焦點環完整（不得 outline:none）
+9. 對比值：${isAAA ? '文字 7:1，AAA' : '文字 4.5:1，AA'}
+10. 語言：${lang === 'zh-TW' ? '繁體中文' : 'English'}
+11. ${isOptimize ? '【絕對要求】只做無障礙與結構優化，所有文字、日期、符號（如「~」不可改成「至」）、email、電話、href、學校名稱、人名一字不改，不可省略或遺漏任何一段' : '可重新組織語意結構，但文字內容、連結、聯絡資訊、學校名稱等實際資料一字不可遺漏或改寫'}
+12. 【必須】所有 <ul> 與 <ol> 的 CSS 預設加上 padding-left: 1.1rem; list-style: auto;
+13. 【必須】依內容語意設計合適的間距，不可讓元素緊貼在一起：<p> margin-bottom ≥ 0.9rem 且 line-height ≥ 1.7；標題 margin-top ≥ 1.5rem；連續的人名／職稱／純文字條列每行 margin-bottom ≥ 0.4rem；雙語對照段落之間 margin-bottom ≥ 0.5rem；不同章節區塊之間 margin-top ≥ 2rem
+14. 【必須】若內容含 <table>：width:100%、border-collapse:collapse；th/td 加 border:1px solid #d0d0d0、padding:0.6rem 0.8rem；th 加 font-weight:600 與淺色背景；tbody tr:nth-child(even) 加斑馬紋淡底色；編號欄位縮小寬度並置中
+15. 其他出現的元素必須設計樣式（不可留瀏覽器預設外觀）：blockquote 加左側色條與縮排；code 加淡灰底與圓角；pre 加區塊背景與捲動；button 加品牌色背景、圓角、hover/focus 狀態；input/select/textarea 加邊框、圓角、focus 狀態；details/summary 的 summary 加粗體與 cursor:pointer；hr 改用細線取代預設樣式；單獨內文圖片加 max-width:100%；強調用徽章文字用 <span> 包裹加底色與圓角
+16. 【必須】最外層容器（.acc-block 或最外層 article/section）：不可設定 max-width，寬度用 width:100%；必須設定 padding:1rem 作為預設內間距，防止內容緊貼容器邊緣
+16a. 【必須】響應式設計：CSS 必須包含至少一組 @media (max-width: 600px) 斷點，內容含：多欄佈局（grid 多欄、flex 多欄並排）在手機寬度改為單欄；字級可適度縮小（如 h3 從 1.5rem 降到約 1.25~1.3rem）；padding 可適度縮小；<table> 用 overflow-x:auto 或改區塊式排列；@media 內規則同樣維持 .acc-block 前綴
+17. 【必須】字級系統：.acc-block 設 font-size:1rem 為基準，其餘標籤一律用 rem/em 相對單位；依語意層次設計大小（h3 1.4~1.6rem > h4 1.2~1.3rem > h5 1.05~1.15rem > 內文 1rem > 次要資訊如圖說/時間戳 0.85~0.9rem）；同層級標籤字級必須一致
+18. 【絕對要求】CSS 嚴格 scope：每條規則的選擇器都必須以 .acc-block 開頭（例如 .acc-block p、.acc-block table th），絕不可出現裸露無 scope 的標籤選擇器（如單獨的 h3 {}、a {}、img {}），確保產出代碼可安全嵌入任何既有頁面而不互相污染
+19. 【絕對要求】若內容含 <dl>：內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 或其他標籤包裹每組 dt/dd（許多 CMS 後台編輯器無法解析這種結構，貼回後台會損壞），排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要額外包裹元素；不可出現空的 <dd></dd>，若某項目其實是標題而非「標籤:內容」配對，改用 <h4> 或 <p>`;
+
+      const userText = typeof userContent === 'string' ? userContent : '';
+      const chunks = splitHtmlChunks(userText, CHUNK_THRESHOLD);
+      const isChunked = chunks.length > 1;
+      const totalSteps = isChunked ? chunks.length + 1 : 1;
+      const htmlPieces = [];
+
+      if (!isChunked) {
+        setProgress(0, 1, isOptimize ? '分析並優化 HTML 結構…' : '重新生成語意化結構…');
+
+        const singleSystem = `${htmlSystemBase}
+
+【重要】輸出必須完整，絕不可中途截斷，必須輸出到最後一個閉合標籤。
+【任務】只輸出一份 <style> + HTML，絕不可輸出第二份 <style>。
+輸出格式：
+%%RESULT_START%%
+<style>
+（CSS 規則）
+</style>
+（HTML 結構，最外層為 <article class="acc-block"> 或 <section class="acc-block">）
+%%RESULT_END%%`;
+
+        const raw = await pacedAPI(singleSystem, [{ role: "user", content: userText }], 8192);
+        let piece = extractBlock(raw, 'RESULT') || raw;
+        piece = stripWrappers(piece);
+        htmlPieces.push(piece);
+
+      } else {
+        /* 偵測這批 chunks 是否為「巨大表格列切割」產生（每段本身就是完整 <table>...</table>） */
+        const isTableChunks = chunks.every(c => /^<table\b/i.test(c.trim()) || /<table\b[\s\S]*<\/table>/i.test(c));
+
+        /* 分段：第一段含 CSS + 外層 wrapper 開頭，後續段落只接續內容
+           （表格列分段情況例外：每段都要求輸出完整表格，由 mergeTableChunks 後續合併） */
+        for (let i = 0; i < chunks.length; i++) {
+          const isFirst = i === 0;
+          const isLast = i === chunks.length - 1;
+          setProgress(i, totalSteps, `第 ${i + 1}／${chunks.length} 段：${isOptimize ? '優化' : '重新生成'} HTML…`);
+
+          let chunkSystem;
+          if (isTableChunks) {
+            chunkSystem = `${htmlSystemBase}
+
+這是一個長表格的第 ${i + 1} 段（共 ${chunks.length} 段，因表格列數過多被拆分，每段是表格的一部分列）。
+${isFirst
+  ? '此段須輸出 <style>（完整 CSS，所有段落共用）+ 完整的 <table>（含 caption、thead、tbody，tbody 內只放本段對應的 <tr> 列），標籤必須完整開閉合。'
+  : '只輸出完整的 <table>（含與第 1 段相同的 caption、thead 結構、tbody 內只放本段對應的 <tr> 列），不輸出 <style>，標籤必須完整開閉合，欄位數與第 1 段一致。'}
+輸出格式：
+%%CHUNK_START%%
+${isFirst ? '<style>\n（完整 CSS）\n</style>\n' : ''}<table class="acc-block__table">
+（caption、thead、tbody，tbody 內為本段列）
+</table>
+%%CHUNK_END%%`;
+          } else {
+            chunkSystem = isFirst
+              ? `${htmlSystemBase}
+
+這是長內容的第 1 段（共 ${chunks.length} 段）。
+此段須輸出 <style>（完整 CSS，所有段落共用）+ 開頭 <article class="acc-block"> 或 <section class="acc-block"> 包住本段內容，但不要寫結尾的閉合標籤（後續段落會接續）。
+輸出格式：
+%%CHUNK_START%%
+<style>
+（完整 CSS）
+</style>
+<article class="acc-block">
+（本段 HTML，不要閉合 article）
+%%CHUNK_END%%`
+              : `${htmlSystemBase}
+
+這是長內容的第 ${i + 1} 段（共 ${chunks.length} 段）。
+【絕對禁止】輸出任何 <style>...</style> 區塊，CSS 已在第 1 段輸出完畢，本段只輸出純 HTML 內容本身。
+【重要】本段輸入文字約 ${chunks[i].length} 字元，輸出 HTML 長度應與輸入相近，不可超過輸入長度的 2 倍。請確保輸出完整，寧可稍短勿截斷。
+只輸出本段內容本身（不含外層 article/section 包裹標籤，沿用第 1 段的 class 命名）。
+${isLast ? '這是最後一段。' : ''}
+輸出格式：
+%%CHUNK_START%%
+（本段純 HTML 內容，不含任何 <style> 標籤）
+%%CHUNK_END%%`;
+          }
+
+          const raw = await pacedAPI(chunkSystem, [{ role: 'user', content: chunks[i] }], 8192);
+          let piece = extractBlock(raw, 'CHUNK') || raw;
+          piece = stripWrappers(piece);
+          /* 保險：若輸出長度不到輸入的 25%，代表極可能被截斷，自動 retry 一次 */
+          if (piece.length < chunks[i].length * 0.25 && chunks[i].length > 200) {
+            setProgress(i, totalSteps, `第 ${i + 1}／${chunks.length} 段：輸出過短，重試…`);
+            await new Promise(r => setTimeout(r, 1500));
+            const raw2 = await pacedAPI(chunkSystem, [{ role: 'user', content: chunks[i] }], 8192);
+            const piece2 = stripWrappers(extractBlock(raw2, 'CHUNK') || raw2);
+            if (piece2.length > piece.length) piece = piece2;
+          }
+          htmlPieces.push(piece);
+        }
+
+        setProgress(chunks.length, totalSteps, '合併段落，整理 CSS…');
+        await new Promise(r => setTimeout(r, 250));
+      }
+
+      /* 去除重複 CSS：只保留第一段的 style */
+      const { cleanedPieces, css } = dedupeStyles(htmlPieces);
+
+      let bodyHtml = demoteHeadings(mergeTableChunks(cleanedPieces));
+      /* 補上外層閉合標籤（分段模式第一段開了 <article> 沒closed） */
+      if (isChunked) {
+        const openTag = bodyHtml.match(/^<(article|section)[^>]*>/i);
+        if (openTag && !new RegExp(`</${openTag[1]}>\\s*$`, 'i').test(bodyHtml)) {
+          bodyHtml = bodyHtml.trimEnd() + `\n</${openTag[1]}>`;
+        }
+      }
+
+      /* 保險：修正 <dl> 內可能違規的 <div> 包裹結構，避免貼回 CMS 後台時損壞 */
+      bodyHtml = fixDlStructure(bodyHtml);
+
+      const hasList = /<(ul|ol)\b/i.test(bodyHtml);
+      const hasTable = /<table\b/i.test(bodyHtml);
+      const hasDl = /<dl\b/i.test(bodyHtml);
+      let finalCss = enforceScopePrefix(
+        ensureOuterPadding(
+          stripOuterMaxWidth(
+            ensureMiscElementStyles(
+              ensureDlGridStyle(ensureTableStyles(ensureSpacingStyles(ensureListStyles(css, hasList), '.acc-block'), hasTable, '.acc-block'), hasDl, '.acc-block'),
+              bodyHtml, '.acc-block'
+            ),
+            '.acc-block'
+          ),
+          '.acc-block'
+        ),
+        '.acc-block'
+      );
+      /* 保險：確保至少有一組基本響應式 @media 斷點（AI 已自行處理則不介入） */
+      finalCss = ensureResponsiveMediaQuery(finalCss, bodyHtml, '.acc-block');
+      const finalCode = organizeStyleOutput(normalizeHtml(
+        finalCss ? `<style>\n${finalCss}\n</style>\n\n${bodyHtml}` : bodyHtml
+      ));
+
+      lastCode = finalCode;
+
+      document.getElementById('preview-empty').style.display = 'none';
+      const frame = document.getElementById('preview-content');
+      frame.style.display = 'block';
+      frame.innerHTML = finalCode;
+
+      document.getElementById('mobile-empty').style.display = 'none';
+      document.getElementById('mobile-wrap').style.display = 'flex';
+      renderPhonePreview(finalCode);
+
+      document.getElementById('code-empty').style.display = 'none';
+      document.getElementById('code-wrap').style.display = 'block';
+
+      const summary = document.getElementById('code-summary');
+      summary.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">${isOptimize ? 'HTML 優化' : '重新生成'}完成</span>
+          <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:${wcag==='AAA'?'#ede9fe':'#e6f4ee'};color:${wcag==='AAA'?'#7c3aed':'#1a6b4a'};font-weight:600">WCAG ${wcag}</span>
+          ${isChunked ? `<span style="font-size:11px;padding:2px 10px;border-radius:20px;background:#eff6ff;color:#1d4ed8;font-weight:600">分 ${chunks.length} 段處理</span>` : ''}
+        </div>
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+          <li>已清除所有 <code>inline style</code>，僅保留單一 <code>&lt;style&gt;</code>（無重複）</li>
+          <li>CSS 全部 scope 在 <code>.acc-block</code> 父層</li>
+          <li>${isOptimize ? '原始文字內容與順序完整保留' : '已重新組織語意結構，文字資訊完整保留'}</li>
+          <li>${isChunked ? `長內容自動分 ${chunks.length} 段處理，已合併輸出` : '單次完整生成'}</li>
+        </ul>`;
+      summary.style.display = 'block';
+      document.getElementById('code-content').textContent = finalCode;
+
+      document.getElementById('check-empty').style.display = 'none';
+      document.getElementById('checklist-wrap').style.display = 'block';
+      renderChecklist(defaultChecks(wcag));
+
+      setProgress(totalSteps, totalSteps, '');
+      showStatus('success', `${isOptimize ? 'HTML 優化' : '重新生成'}完成${isChunked ? `（${chunks.length} 段合併）` : ''}！切換至「原始碼」複製使用。`);
+      resetBtn();
+      return;
+    }
+
+    /* ── 原始碼優化模式：自動偵測長度，超過門檻自動分段 ── */
+    if (currentTab === 'full') {
+
+      const fullSystemBase = `你是資深前端工程師，專精無障礙（WCAG 2.2 AA）與乾淨代碼。
+規則：
+1. 只輸出 <style>...</style> 加 HTML 結構，不輸出 DOCTYPE/html/head/body/meta/title
+2. 不設定 font-family（外層架構繼承）
+3. 背景色白色：頂層容器加 background:#fff
+4. 【絕對要求】統一最外層容器 class 為 .acc-block：不論原始碼最外層用什麼 class 或標籤名稱（如 .container、.rg-container、.page-wrapper 等），輸出時一律改成最外層 <div class="acc-block"> 或 <article class="acc-block">／<section class="acc-block"> 包裹全部內容，原本的 class 可保留為次要 class（例如 class="acc-block rg-container"）但 CSS 規則一律以 .acc-block 為 scope 前綴
+5. 【絕對要求】CSS 嚴格 scope：每一條 CSS 規則的選擇器都必須以 .acc-block 開頭（例如 .acc-block p、.acc-block table th、.acc-block .rg-table），絕不可出現裸露無 scope 的標籤或 class 選擇器（如單獨的 p {}、table {}、.rg-table {}），這是為了確保產出的程式碼可以安全嵌入任何既有頁面，不會污染外層或被外層既有 CSS 覆蓋／衝突
+6. 清除所有 inline style，整理進 <style>，只生成實際使用的規則
+7. 響應式：桌機維持原始佈局，手機單欄
+8. 【絕對要求】維持原始文字一字不改：所有文字、日期、符號（如「~」不可改成「至」）、email、電話、連結 href、學校名稱、人名都必須與原文完全相同，只能修正無障礙屬性，不可改寫、不可省略、不可遺漏任何一段
+9. WCAG 2.2 AA 無障礙修正：圖片補 alt、連結補 title/aria-label、表單補 label、焦點環完整、對比 4.5:1
+10. 清除冗餘標籤，改用語意化標籤
+11. 不加 lang 屬性
+12. 標題層級規則（嚴格遵守）：移除原始碼中所有 <h1>/<h2>，標題層級整體平移使最高對齊 h3 並保留相對層次（h1→h3、h2→h4、h3→h5…，最深 h6）；若最高只到 h2 則 h2→h3、h3→h4；嚴禁把不同層級壓成同一 h3，標題文字內容保留不變
+13. 【必須】所有 <ul> 與 <ol> 的 CSS 預設加上 padding-left: 1.1rem; list-style: auto;
+14. 【必須】依內容語意與標籤順序設計合適的間距與層次，不可讓元素緊貼在一起：
+    - <p> 段落：margin-bottom: 0.9rem 以上；line-height: 1.7 以上
+    - <h3>/<h4>/<h5> 等標題：margin-top: 1.5rem 以上（與前一區塊拉開距離）、margin-bottom: 0.6rem
+    - 連續出現的人名／職稱／條列式資訊（即使只是 <p> 或純文字，沒有用 <ul>）：每行視為一個邏輯項目，給予 margin-bottom: 0.4~0.6rem，避免一行緊接一行
+    - 雙語對照內容（中文段落緊接英文段落）：兩者之間至少 margin-bottom: 0.5rem，且可用顏色或字級做視覺區分（例如英文用 color: #555 或字級略小）
+    - 章節區塊（如不同研究組、不同單位）之間：用 padding 或 border-top 製造明顯區隔，margin-top ≥ 2rem
+    - 圖片與其說明文字：margin: 0.75rem 0
+    - 絕不可讓相鄰的文字區塊在視覺上「黏在一起」沒有間距
+15. 【必須】若內容含 <table>，必須設計完整表格樣式，不可無框線無內距：
+    - table：width: 100%、border-collapse: collapse、margin: 1rem 0
+    - th/td：border: 1px solid #d0d0d0、padding: 0.6rem 0.8rem、text-align: left、vertical-align: top
+    - th（表頭，若有）：font-weight: 600、background-color 淺色區隔
+    - tbody tr:nth-child(even)：淡色底紋（如 #f7f7f7）斑馬紋增加可讀性
+    - 若表格第一欄是純數字編號（如 1, 2, 3...）：該欄位 width 縮小（如 width: 3rem）、text-align: center
+    - 響應式：手機寬度時可用 overflow-x: auto 包裹 table 或改為區塊式排列
+16. 其他出現的元素必須設計樣式，不可留瀏覽器預設外觀：
+    - blockquote：左側 border-left 色條、padding-left、margin
+    - code：淡灰底、padding、border-radius、monospace 字體
+    - pre：區塊背景、padding、border-radius、overflow-x:auto
+    - button：品牌色背景、padding、border-radius、hover 與 focus-visible 狀態
+    - input/select/textarea：邊框、border-radius、padding、focus 狀態
+    - details/summary：summary 加粗體、cursor:pointer
+    - hr：改用細線（border-top:1px solid 淡色）取代預設粗線
+    - 單獨內文圖片（不在 figure 內）：max-width:100%、height:auto、display:block、margin:0.75rem auto（水平置中，不可靠左對齊）
+    - 若有 <figure>：figure 本身設 margin:0 auto 置中，內部 img 設 display:block、margin:0 auto，figcaption 文字置中（text-align:center）
+    - 強調用徽章／標籤文字：用 span 包裹加底色、padding、border-radius、font-weight
+17. 【必須】最外層容器（.acc-block）：不可設定 max-width，寬度用 width:100%；必須設定 padding:1rem 作為預設內間距，防止內容緊貼容器邊緣
+17a. 【必須】響應式設計：CSS 必須包含至少一組 @media (max-width: 600px) 斷點，內容含：多欄佈局在手機寬度改為單欄；字級可適度縮小（如 h3 從 1.5rem 降到約 1.25~1.3rem）；padding 可適度縮小；<table> 用 overflow-x:auto 或改區塊式排列；@media 內規則同樣維持 .acc-block 前綴
+18. 【必須】字級系統：.acc-block 設 font-size:1rem 為基準，其餘標籤一律用 rem/em 相對單位，不可寫死 px；依語意層次設計大小（h3 1.4~1.6rem > h4 1.2~1.3rem > h5 1.05~1.15rem > 內文/td 1rem > 次要資訊如圖說/時間戳/版權 0.85~0.9rem）；同一語意層級的標籤字級必須一致
+19. 【絕對要求】若內容含 <dl> 或需要建立「標籤:內容」配對的條列資訊，<dl> 內部只能直接放 <dt>/<dd>，絕對禁止用 <div> 包裹每組 dt/dd（例如禁止 <dl><div><dt>...</dt><dd>...</dd></div></dl>），這種結構許多 CMS 後台編輯器無法正確解析，貼回後台會導致內容損壞或跑版；排版對齊完全用 CSS Grid 在 .acc-block dl 本身設定（display:grid; grid-template-columns:max-content 1fr; row-gap:10px），不需要任何額外包裹元素；不可出現空的 <dd></dd>`;
+
+      const chunks = splitHtmlChunks(userContent, CHUNK_THRESHOLD);
+      const isChunked = chunks.length > 1;
+      const totalSteps = isChunked ? chunks.length + 1 : 1;
+
+      const fullPieces = [];
+
+      if (!isChunked) {
+        setProgress(0, 1, '分析原始碼，執行無障礙優化…');
+
+        const singleSystem = `${fullSystemBase}
+
+【重要】輸出必須完整，絕不可中途截斷，必須輸出到最後一個閉合標籤。
+【任務】只輸出一份 <style> + HTML，絕不可輸出第二份 <style>。
+%%FULL_START%%
+<style>
+（CSS 規則）
+</style>
+（HTML 結構）
+%%FULL_END%%`;
+
+        const raw = await pacedAPI(singleSystem,
+          [{ role: 'user', content: `請依規則優化以下原始碼，文字一字不改：\n\n${userContent}` }], 8192);
+        let code = extractBlock(raw, 'FULL') || raw;
+        fullPieces.push(stripWrappers(code));
+
+      } else {
+        /* 偵測這批 chunks 是否為「巨大表格列切割」產生（每段本身就是完整 <table>...</table>） */
+        const isTableChunksFull = chunks.every(c => /^<table\b/i.test(c.trim()) || /<table\b[\s\S]*<\/table>/i.test(c));
+
+        for (let i = 0; i < chunks.length; i++) {
+          const isFirst = i === 0;
+          const isLast = i === chunks.length - 1;
+          setProgress(i, totalSteps, `第 ${i + 1}／${chunks.length} 段：優化 HTML 結構…`);
+
+          let chunkSystem;
+          if (isTableChunksFull) {
+            chunkSystem = `${fullSystemBase}
+
+這是一個長表格的第 ${i + 1} 段（共 ${chunks.length} 段，因表格列數過多被拆分，每段是表格的一部分列）。
+${isFirst
+  ? '此段須輸出 <style>（完整 CSS）+ 完整的 <table>（含 caption、thead、tbody，tbody 內只放本段對應的 <tr> 列），標籤必須完整開閉合。'
+  : '只輸出完整的 <table>（含與第 1 段相同的 caption、thead 結構、tbody 內只放本段對應的 <tr> 列），不輸出 <style>，標籤必須完整開閉合，欄位數與第 1 段一致。'}
+%%CHUNK_START%%
+${isFirst ? '<style>\n（完整 CSS）\n</style>\n' : ''}<table class="acc-block__table">
+（caption、thead、tbody，tbody 內為本段列）
+</table>
+%%CHUNK_END%%`;
+          } else {
+            chunkSystem = isFirst
+              ? `${fullSystemBase}
+
+這是長文件的第 1 段（共 ${chunks.length} 段）。
+此段輸出 <style>（完整 CSS）+ 開頭 <article class="acc-block"> 包住本段內容，不要寫結尾閉合標籤。
+%%CHUNK_START%%
+<style>
+（完整 CSS）
+</style>
+<article class="acc-block">
+（本段 HTML，不閉合 article）
+%%CHUNK_END%%`
+              : `${fullSystemBase}
+
+這是長文件的第 ${i + 1} 段（共 ${chunks.length} 段）。
+【絕對禁止】輸出任何 <style>...</style> 區塊，CSS 已在第 1 段輸出完畢，本段只輸出純 HTML 內容本身。
+【重要】本段輸入約 ${chunks[i].length} 字元，輸出 HTML 長度應與輸入相近，請確保輸出完整，不可截斷。
+只輸出本段 HTML 內容本身（不含外層 article 包裹、沿用第 1 段 class 命名）。
+${isLast ? '這是最後一段。' : ''}
+%%CHUNK_START%%
+（本段純 HTML 內容，不含任何 <style> 標籤）
+%%CHUNK_END%%`;
+          }
+
+          const raw = await pacedAPI(chunkSystem,
+            [{ role: 'user', content: `請優化以下原始碼片段，文字一字不改：\n\n${chunks[i]}` }], 8192);
+          let part = extractBlock(raw, 'CHUNK') || raw;
+          part = stripWrappers(part);
+          /* 保險：若輸出長度不到輸入的 25%，代表極可能被截斷，自動 retry 一次 */
+          if (part.length < chunks[i].length * 0.25 && chunks[i].length > 200) {
+            setProgress(i, totalSteps, `第 ${i + 1}／${chunks.length} 段：輸出過短，重試…`);
+            await new Promise(r => setTimeout(r, 1500));
+            const raw2 = await pacedAPI(chunkSystem,
+              [{ role: 'user', content: `請優化以下原始碼片段，文字一字不改：\n\n${chunks[i]}` }], 8192);
+            const part2 = stripWrappers(extractBlock(raw2, 'CHUNK') || raw2);
+            if (part2.length > part.length) part = part2;
+          }
+          fullPieces.push(part);
+        }
+
+        setProgress(chunks.length, totalSteps, '合併所有段落，整理 CSS…');
+        await new Promise(r => setTimeout(r, 250));
+      }
+
+      /* 去除重複 CSS：只保留第一份 style，所有片段的 style 全部移除 */
+      const { cleanedPieces, css } = dedupeStyles(fullPieces);
+      let bodyHtml = demoteHeadings(mergeTableChunks(cleanedPieces));
+
+      /* 補外層閉合標籤 */
+      if (isChunked) {
+        const openTag = bodyHtml.match(/^<(article|section)[^>]*>/i);
+        if (openTag && !new RegExp(`</${openTag[1]}>\\s*$`, 'i').test(bodyHtml)) {
+          bodyHtml = bodyHtml.trimEnd() + `\n</${openTag[1]}>`;
+        }
+      }
+
+      /* 保險：確保最外層容器一定帶有 acc-block class，即使 AI 沒有依規則統一命名，
+         也強制把整份內容包進 <div class="acc-block">，讓後續所有 scope 為 .acc-block 的
+         CSS 規則能正確生效，不會因為找不到 .acc-block 元素而樣式失效或外洩。 */
+      bodyHtml = ensureAccBlockWrapper(bodyHtml);
+
+      /* 保險：修正 <dl> 內可能違規的 <div> 包裹結構，避免貼回 CMS 後台時損壞 */
+      bodyHtml = fixDlStructure(bodyHtml);
+
+      const hasListFull = /<(ul|ol)\b/i.test(bodyHtml);
+      const hasTableFull = /<table\b/i.test(bodyHtml);
+      const hasDlFull = /<dl\b/i.test(bodyHtml);
+      let finalCssFull = enforceScopePrefix(
+        ensureOuterPadding(
+          stripOuterMaxWidth(
+            ensureMiscElementStyles(
+              ensureDlGridStyle(ensureTableStyles(ensureSpacingStyles(ensureListStyles(css, hasListFull), '.acc-block'), hasTableFull, '.acc-block'), hasDlFull, '.acc-block'),
+              bodyHtml, '.acc-block'
+            ),
+            '.acc-block'
+          ),
+          '.acc-block'
+        ),
+        '.acc-block'
+      );
+      /* 保險：確保至少有一組基本響應式 @media 斷點（AI 已自行處理則不介入） */
+      finalCssFull = ensureResponsiveMediaQuery(finalCssFull, bodyHtml, '.acc-block');
+      const fullCode = organizeStyleOutput(normalizeHtml(
+        finalCssFull ? `<style>\n${finalCssFull}\n</style>\n\n${bodyHtml}` : bodyHtml
+      ));
+
+      lastCode = fullCode;
+
+      document.getElementById('preview-empty').style.display = 'none';
+      const frame = document.getElementById('preview-content');
+      frame.style.display = 'block';
+      frame.innerHTML = fullCode;
+
+      document.getElementById('mobile-empty').style.display = 'none';
+      document.getElementById('mobile-wrap').style.display = 'flex';
+      renderPhonePreview(fullCode);
+
+      document.getElementById('code-empty').style.display = 'none';
+      document.getElementById('code-wrap').style.display = 'block';
+
+      const summary = document.getElementById('code-summary');
+      summary.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">原始碼優化完成</span>
+          <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:#e6f4ee;color:#1a6b4a;font-weight:600">WCAG AA</span>
+          ${isChunked ? `<span style="font-size:11px;padding:2px 10px;border-radius:20px;background:#eff6ff;color:#1d4ed8;font-weight:600">分 ${chunks.length} 段處理</span>` : ''}
+        </div>
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+          <li>已清除所有 <code>inline style</code>，僅保留單一 <code>&lt;style&gt;</code>（無重複）</li>
+          <li>CSS 只包含實際使用的規則，無冗餘樣式</li>
+          <li>不含 <code>DOCTYPE</code>、<code>html</code>、<code>head</code>、<code>body</code>、<code>meta</code></li>
+          <li>WCAG AA 無障礙修正完成（alt、aria-label、焦點環、對比值）</li>
+          <li>原始文字內容與架構完整保留${isChunked ? `（${chunks.length} 段合併）` : ''}</li>
+        </ul>`;
+      summary.style.display = 'block';
+      document.getElementById('code-content').textContent = fullCode;
+
+      document.getElementById('check-empty').style.display = 'none';
+      document.getElementById('checklist-wrap').style.display = 'block';
+      renderChecklist(defaultChecks('AA'));
+
+      setProgress(totalSteps, totalSteps, '');
+      showStatus('success', `原始碼優化完成${isChunked ? `（${chunks.length} 段合併）` : ''}！切換至「原始碼」複製貼入使用。`);
+      resetBtn();
+      return;
+    }
+
+    /* ── 標準三段式生成流程（其他 tab） ── */
+    setProgress(0, 3, '第 1 步：生成語意化 HTML 結構…');
+
+    const htmlSystem = `${sharedRules}
+
+【重要】你必須輸出完整的 HTML，絕對不可在中途截斷。無論內容多長，都必須輸出到最後一個閉合標籤 </article> 或 </section>。如果內容很長，精簡屬性和文字，但結構必須完整閉合。
+
+【任務】只輸出語意化 HTML，不輸出任何 CSS 和說明文字。
+輸出格式（標記不得省略）：
+%%HTML_START%%
+（完整語意化 HTML，最外層為 <article class="acc-block"> 或 <section class="acc-block">）
+%%HTML_END%%`;
+
+    const htmlRaw = await pacedAPI(htmlSystem, userMsg, 8192);
+    let htmlBody = extractBlock(htmlRaw, 'HTML');
+    if (!htmlBody) {
+      const m = htmlRaw.match(/<(?:article|section|div|main)[^>]*>[\s\S]*/i);
+      htmlBody = m ? m[0] : htmlRaw;
+    }
+
+    /* 修補截斷的 HTML：補上未閉合的外層標籤 */
+    const outerTagMatch = htmlBody.match(/^<(article|section|div|main)[^>]*>/i);
+    if (outerTagMatch) {
+      const tag = outerTagMatch[1].toLowerCase();
+      const closeTag = `</${tag}>`;
+      if (!htmlBody.trimEnd().endsWith(closeTag)) {
+        htmlBody = htmlBody.trimEnd() + `\n${closeTag}`;
+      }
+    }
+    htmlBody = normalizeHtml(htmlBody);
+
+    setProgress(1, 3, '第 2 步：依 HTML 結構生成對應 CSS…');
+
+    /* ── Phase 2：依實際 HTML 的 class 生成對應 CSS，不產出多餘樣式 ── */
+
+    /* 從 HTML 中擷取所有實際使用的 class，作為 CSS 生成依據 */
+    const usedClasses = [...new Set(
+      [...htmlBody.matchAll(/class="([^"]+)"/g)]
+        .flatMap(m => m[1].split(/\s+/))
+        .filter(c => c.startsWith('acc-block'))
+    )];
+    const usedTags = [...new Set(
+      [...htmlBody.matchAll(/<(h[3-6]|figure|figcaption|dl|dt|dd|ul|ol|li|a|table|th|td|section|article|aside|nav)\b/gi)]
+        .map(m => m[1].toLowerCase())
+    )];
+
+    const cssSystem = `${sharedRules}
+
+【任務】只輸出 CSS，不輸出任何 HTML。
+
+重要原則：
+- 只為下方「實際使用的 class」和「實際使用的標籤」生成樣式
+- 沒有出現在 HTML 中的 class 或標籤，一律不生成對應規則
+- 不生成任何預防性、通用性、未被 HTML 使用的備用樣式
+- 全部 scope 在 .acc-block 父層下，絕不污染全域
+- CSS 必須完整輸出，不可截斷，包含所有規則直到最後一個 } 才結束
+
+實際使用的 class（只為這些生成樣式）：
+${usedClasses.join(', ') || '（無額外 class，只使用語意標籤）'}
+
+實際使用的語意標籤（只為這些生成標籤選擇器）：
+${usedTags.join(', ') || '（無特殊標籤）'}
+
+【UI 設計要求】依上方 HTML 的內容性質設計合適的視覺樣式：
+- 卡片式佈局（白底、細邊框、圓角、輕陰影）
+- 標題用 border-left 色塊或底線強調
+- 重要資訊欄位用淡色背景區隔
+- 按鈕、連結有 hover 效果且對比符合規範
+- 條列清單 line-height ≥ 1.8、li margin-bottom ≥ 8px
+- 【必須】所有 <ul> 與 <ol> 預設加上 padding-left: 1.1rem; list-style: auto;（讓項目符號／編號正常顯示且有適當縮排）
+- 響應式：桌機雙欄 grid，手機單欄
+- 若有 <dl>：grid-template-columns: max-content 1fr、row-gap: 10px（注意：<dl> 內結構固定是直接放 <dt>/<dd>，不會有額外 div 包裹，CSS 設計時以此為前提）
+- 若有 figcaption：padding-top: 12px、border-top: 2px solid、各 p 有明確 margin-bottom
+
+輸出格式（標記不得省略）：
+%%STYLE_START%%
+（CSS 規則本體，不含 <style> 標籤，全部 scope 在 .acc-block 下）
+%%STYLE_END%%`;
+
+    const cssRaw = await pacedAPI(cssSystem, [{ role: 'user', content:
+      `請依照以下 HTML 生成對應的 CSS：\n\n${htmlBody}` }], 8192);
+    let cssBody = extractBlock(cssRaw, 'STYLE');
+    if (!cssBody) cssBody = cssRaw.replace(/<[^>]+>/g, '').trim();
+
+    /* 修補截斷的 CSS */
+    const openBraces = (cssBody.match(/\{/g) || []).length;
+    const closeBraces = (cssBody.match(/\}/g) || []).length;
+    if (openBraces > closeBraces) cssBody += '\n}'.repeat(openBraces - closeBraces);
+
+    const cssBodyClean = normalizeHtml(cssBody);
+
+    setProgress(2, 3, '第 3 步：執行 WCAG 檢核…');
+
+    /* ── Phase 3：WCAG 檢核 ── */
+    const checkSystem = `${sharedRules}
+
+【任務】審查以下 CSS 與 HTML 是否符合 WCAG 2.2 ${wcag} 規範，輸出 JSON 陣列，不輸出任何其他文字。
+格式（純 JSON 陣列，不加 Markdown 圍欄）：
+%%CHECKS_START%%
+[{"id":"...","label":"...","pass":true 或 false,"note":"具體說明","level":"A 或 AA 或 AAA"}]
+%%CHECKS_END%%
+
+檢核項目（請逐一確認）：
+- alt：圖片替代文字（A）
+- heading：標題層級 h3 起，不跳級（A）
+- inline：已清除所有 inline style（A）
+- contrast：色彩對比值符合 ${wcag} 要求（${wcag}）
+- keyboard：所有互動元素可鍵盤操作（A）
+- label：表單有 label for 對應（A）
+- semantic：使用語意化 HTML 標籤（A）
+- scope：CSS 全部在 .acc-block scope 下（A）
+- focus：焦點環可見，未被 outline:none 取消（AA）`;
+
+    const checkUserContent = `審查以下生成結果：\n\nCSS：\n${cssBodyClean.slice(0, 1500)}\n\nHTML：\n${htmlBody.slice(0, 1500)}`;
+    const checkRaw = await pacedAPI(checkSystem, [{ role: 'user', content: checkUserContent }], 1024);
+
+    let checks = defaultChecks(wcag);
+    const checkBody = extractBlock(checkRaw, 'CHECKS');
+    if (checkBody) {
+      try { checks = JSON.parse(checkBody); } catch { /* use default */ }
+    } else {
+      const arrMatch = checkRaw.match(/\[[\s\S]*?\]/);
+      if (arrMatch) { try { checks = JSON.parse(arrMatch[0]); } catch { /* use default */ } }
+    }
+
+    /* ── 組合最終輸出：只有 <style> + HTML ── */
+    let demotedBody = demoteHeadings(htmlBody);
+    /* 保險：修正 <dl> 內可能違規的 <div> 包裹結構，避免貼回 CMS 後台時損壞 */
+    demotedBody = fixDlStructure(demotedBody);
+
+    const hasListStd = /<(ul|ol)\b/i.test(demotedBody);
+    const hasTableStd = /<table\b/i.test(demotedBody);
+    const hasDlStd = /<dl\b/i.test(demotedBody);
+    let finalCssStd = enforceScopePrefix(
+      ensureOuterPadding(
+        stripOuterMaxWidth(
+          ensureMiscElementStyles(
+            ensureDlGridStyle(ensureTableStyles(ensureSpacingStyles(ensureListStyles(cssBodyClean, hasListStd), '.acc-block'), hasTableStd, '.acc-block'), hasDlStd, '.acc-block'),
+            demotedBody, '.acc-block'
+          ),
+          '.acc-block'
+        ),
+        '.acc-block'
+      ),
+      '.acc-block'
+    );
+    /* 保險：確保至少有一組基本響應式 @media 斷點（AI 已自行處理則不介入） */
+    finalCssStd = ensureResponsiveMediaQuery(finalCssStd, demotedBody, '.acc-block');
+    const finalHtml = organizeStyleOutput(normalizeHtml(
+      finalCssStd
+        ? `<style>\n${finalCssStd}\n</style>\n\n${demotedBody}`
+        : demotedBody
+    ));
+
+    lastCode = finalHtml;
+
+    /* 預覽（電腦版） */
+    document.getElementById('preview-empty').style.display = 'none';
+    const frame = document.getElementById('preview-content');
+    frame.style.display = 'block';
+    frame.innerHTML = finalHtml;
+
+    /* 手機版預覽：注入相同內容至 phone-screen */
+    document.getElementById('mobile-empty').style.display = 'none';
+    var mobileWrap = document.getElementById('mobile-wrap');
+    mobileWrap.style.display = 'flex';
+    renderPhonePreview(finalHtml);
+
+    /* 原始碼面板：先顯示說明摘要，再顯示 code block */
+    document.getElementById('code-empty').style.display = 'none';
+    document.getElementById('code-wrap').style.display = 'block';
+
+    /* 生成優化說明摘要 */
+    const passCount = checks.filter(c => c.pass).length;
+    const failItems = checks.filter(c => !c.pass).map(c => c.label).join('、') || '無';
+    document.getElementById('code-summary').innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--text-primary)">無障礙優化摘要</span>
+        <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:${wcag==='AAA'?'#ede9fe':'#e6f4ee'};color:${wcag==='AAA'?'#7c3aed':'#1a6b4a'};font-weight:600">WCAG ${wcag}</span>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+        <li>標題層級：從 <code>h3</code> 開始，依語意遞推</li>
+        <li>CSS：全部 scope 在 <code>.acc-block</code> 父層，不污染全域</li>
+        <li>圖片：<code>alt</code>（簡短語意）＋ <code>figcaption</code>（詳細說明）</li>
+        <li>已清除所有 <code>inline style</code>，整理入 <code>&lt;style&gt;</code></li>
+        <li>WCAG 檢核：${passCount}／${checks.length} 項通過${failItems !== '無' ? `，待確認：${failItems}` : ''}</li>
+      </ul>`;
+    document.getElementById('code-summary').style.display = 'block';
+
+    /* 設定 code block 內容 */
+    document.getElementById('code-content').textContent = finalHtml;
+
+    /* 檢核 */
+    document.getElementById('check-empty').style.display = 'none';
+    document.getElementById('checklist-wrap').style.display = 'block';
+    renderChecklist(checks);
+
+    setProgress(3, 3, '');
+    showStatus('success', `WCAG ${wcag} 生成完成！切換至「原始碼」查看並複製。`);
+
+  } catch (err) {
+    showStatus('error', '生成失敗：' + (err.message || '請檢查網路連線') + '。可再按一次「生成」重試。');
+  }
+
+  resetBtn();
+}
+
+function resetBtn() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = false;
+  const spinner = document.getElementById('gen-icon');
+  if (spinner) {
+    spinner.outerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" id="gen-icon" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>`;
+  }
+  document.getElementById('gen-text').textContent = '重新生成 ↺';
+}
+
+
+async function buildUserContent() {
+  if (currentTab === 'text') {
+    const text = document.getElementById('text-input').value.trim();
+    if (!text && textImgs.length === 0) return null;
+    const content = [];
+    if (text) content.push({ type: 'text', text: `請依照以下文字內容生成無障礙 HTML 片段：\n\n${text}` });
+    for (const img of textImgs) {
+      content.push({ type: 'text', text: img.alt ? `（附圖，指定 alt：${img.alt}）` : '（附圖，請依圖片內容自動生成 alt 及 figcaption）' });
+      content.push({ type: 'image', source: { type: 'base64', media_type: getMime(img.dataUrl), data: toBase64(img.dataUrl) } });
+    }
+    return content.length > 0 ? content : null;
+  }
+
+  if (currentTab === 'word') {
+    const text = document.getElementById('word-extracted').value.trim();
+    if (!text || text.includes('解析中')) return null;
+    const hasTable = /\|.*\|/.test(text);
+    const hasImgPlaceholder = /__DOCX_IMG_\d+__/.test(text);
+    let instruction = `請將以下從 Word 文件擷取的內容，生成語意正確的無障礙 HTML 片段，保留標題層級與段落結構（# 為標題層級標記，數量代表階層深淺）。`;
+    if (hasTable) {
+      instruction += `\n內容中以 Markdown 表格語法（| 欄位 | 欄位 |）呈現的部分，請轉換為語意正確的 <table>（含 <thead>/<tbody>、<th> 表頭儲存格），保留原始的列與欄對應關係，不可打散或重新排列資料。`;
+    }
+    if (hasImgPlaceholder) {
+      instruction += `\n內容中的 __DOCX_IMG_n__ 是圖片佔位標記，代表原文件中該位置有一張圖片（圖片已附加在這次請求中，依附加順序對應 1、2、3...）。請在該位置生成 <figure class="acc-block__figure"> 結構，依圖片實際內容與其上下文判斷適當的 alt 與 figcaption，不要把佔位標記文字直接輸出在結果中。`;
+    }
+    if (!hasImgPlaceholder && wordImgs.length === 0) {
+      return `${instruction}\n\n${text}`;
+    }
+    /* 含圖片：組成多模態請求，文字內容 + 依序附加的圖片 */
+    const content = [{ type: 'text', text: `${instruction}\n\n${text}` }];
+    wordImgs.forEach((img, i) => {
+      content.push({ type: 'text', text: `（對應 __DOCX_IMG_${i + 1}__ 的圖片）` });
+      content.push({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.dataUrl.split(',')[1] } });
+    });
+    return content;
+  }
+
+  if (currentTab === 'img') {
+    if (imgEntries.length === 0) return null;
+    const content = [{ type: 'text', text: `請為以下 ${imgEntries.length} 張圖片各別生成 <figure> 結構（含 alt 與 figcaption）：` }];
+    for (let i = 0; i < imgEntries.length; i++) {
+      const img = imgEntries[i];
+      const hint = `第 ${i + 1} 張：alt=${img.alt || '請自動生成'}，figcaption=${img.caption || '請自動生成'}`;
+      content.push({ type: 'text', text: hint });
+      content.push({ type: 'image', source: { type: 'base64', media_type: getMime(img.dataUrl), data: toBase64(img.dataUrl) } });
+    }
+    return content;
+  }
+
+  if (currentTab === 'html') {
+    const html = document.getElementById('html-input').value.trim();
+    if (!html) return null;
+    const action = htmlMode === 'optimize'
+      ? '請對以下 HTML 進行無障礙優化：清除 inline style、補齊 alt/aria/label、修正標題層級、CSS 整理至 .acc-block scope，不改變內容意義。'
+      : '請以下列 HTML 的內容為基礎，重新生成語意化、無障礙且結構乾淨的 HTML 片段。';
+    return `${action}\n\n${html}`;
+  }
+
+  if (currentTab === 'full') {
+    const code = document.getElementById('full-input').value.trim();
+    if (!code) return null;
+    return code;
+  }
+
+  return null;
+}
+
+/* ── Status ── */
+function showStatus(type, msg, pct) {
+  const el = document.getElementById('preview-status');
+  el.className = 'status-bar ' + type;
+  const icons = {
+    loading: '<div class="spinner" style="width:15px;height:15px;border:2px solid #93c5fd;border-top-color:#1d4ed8;border-radius:50%;animation:spin .65s linear infinite;flex-shrink:0" aria-hidden="true"></div>',
+    success: '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+  };
+  const progressBar = (type === 'loading' && typeof pct === 'number')
+    ? `<div style="position:absolute;bottom:0;left:0;height:2px;background:currentColor;opacity:.35;border-radius:0 0 var(--radius-md) var(--radius-md);width:${pct}%;transition:width .4s ease"></div>`
+    : '';
+  el.style.position = 'relative';
+  el.style.overflow = 'hidden';
+  el.innerHTML = `${icons[type]}<div style="flex:1;display:flex;align-items:center;gap:8px">${msg}</div>${progressBar}`;
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.style.display = 'flex';
+}
+
+/* ── Checklist ── */
+function renderChecklist(checks) {
+  const grid = document.getElementById('checklist');
+  grid.innerHTML = '';
+  checks.forEach(c => {
+    const status = c.pass === true ? 'pass' : c.pass === false ? 'fail' : 'warn';
+    const icons = {
+      pass: '<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      warn: '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      fail: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+    };
+    const levelClass = `level-${c.level || 'A'}`;
+    const el = document.createElement('div');
+    el.className = `check-item ${status}`;
+    el.setAttribute('role', 'listitem');
+    el.innerHTML = `
+      <div class="check-icon ${status}" aria-label="${status === 'pass' ? '通過' : status === 'warn' ? '注意' : '未通過'}">${icons[status]}</div>
+      <div class="check-body">
+        <div class="check-label">${c.label}<span class="check-level ${levelClass}">${c.level || 'A'}</span></div>
+        <div class="check-note">${c.note || ''}</div>
+      </div>`;
+    grid.appendChild(el);
+  });
+}
+
+function defaultChecks(wcag) {
+  return [
+    { id:'alt', label:'圖片替代文字', pass:true, note:'已生成語意 alt', level:'A' },
+    { id:'heading', label:'標題層級', pass:true, note:'h3 起，不跳級', level:'A' },
+    { id:'contrast', label:'色彩對比', pass:true, note:`符合 WCAG ${wcag}`, level: wcag },
+    { id:'keyboard', label:'鍵盤可操作', pass:true, note:'Tab 可操作', level:'A' },
+    { id:'semantic', label:'語意化結構', pass:true, note:'語意標籤完整', level:'A' },
+    { id:'scope', label:'CSS Scope', pass:true, note:'.acc-block 隔離', level:'A' },
+    { id:'focus', label:'焦點可見性', pass:true, note:'焦點環保留', level:'AA' }
+  ];
+}
+
+/* ── Copy ── */
+function copyCode() {
+  const code = document.getElementById('code-content').textContent;
+  const lbl = document.getElementById('copy-label');
+  if (!code.trim()) return;
+
+  const doSuccess = () => {
+    lbl.textContent = '✓ 已複製！';
+    setTimeout(() => { lbl.textContent = '複製原始碼'; }, 2200);
+  };
+  const doFail = () => {
+    lbl.textContent = '複製失敗，請手動選取';
+    setTimeout(() => { lbl.textContent = '複製原始碼'; }, 3000);
+  };
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(code).then(doSuccess).catch(() => {
+      /* clipboard API 拒絕時用 fallback */
+      legacyCopy(code) ? doSuccess() : doFail();
+    });
+  } else {
+    legacyCopy(code) ? doSuccess() : doFail();
+  }
+}
+
+function legacyCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+/* ── 綁定按鈕事件（所有函式定義完畢後，onclick 為主要觸發，此為備援） ── */
+(function() {
+  var c = document.getElementById('copy-btn');
+  if (c) c.addEventListener('click', copyCode);
+  var r = document.getElementById('reset-btn');
+  if (r) r.addEventListener('click', resetAll);
+  initUploadZones();
+})();
+</script>
+</body>
+</html>
